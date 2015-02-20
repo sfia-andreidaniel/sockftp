@@ -1,7 +1,7 @@
 *.o
 *.ppu
 *.log
-CacherDaemon
+wsdaemon
 *~
 *.swp
 *.swo
