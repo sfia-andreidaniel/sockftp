@@ -1,0 +1,45 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>JavaScript api</title>
+    <script type="text/javascript" src="jsapi.js"></script>
+    <script>
+        window.addEventListener('load', function() {
+            
+            var ws = new WebSocket("ws://127.0.0.1:8181/socketserver", "sockftp");
+            
+            ( function( me ) {
+                
+                ws.addEventListener( 'open', function(evt) {
+                    
+                    console.warn( 'opened' );
+                    
+                }, false );
+                
+                ws.addEventListener( 'message', function( evt ) {
+                    
+                    console.warn( 'message' );
+                    
+                }, false );
+                
+                ws.addEventListener( 'error', function( evt ) {
+                    
+                    console.warn( 'error' );
+                
+                }, false );
+                
+                ws.addEventListener( 'close', function( evt ) {
+                    
+                    console.warn( 'close' );
+                    
+                }, false );
+                
+            } )( this );
+            
+            
+        }, true );
+    </script>
+</head>
+<body>
+</body>
+</html>

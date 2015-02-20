@@ -27,7 +27,7 @@ var
 
 begin
     
-    // Registering threads, uses 2332 temporaly.
+    // Registering threads, uses 8181 temporaly.
     RegisterServerThread(8181, TWebSocketThread);
     
     // Registering daemon

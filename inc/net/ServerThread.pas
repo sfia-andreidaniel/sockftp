@@ -10,18 +10,27 @@ type
       Supports Sockets, Messaging. }
     TServerThread = class(TMessagingThread)
     public
+
         { Constructor }
         constructor Create(Sock: TNetworkSocket);
+
     protected
+        
+        { Socket }
         Socket: TNetworkSocket;
+        
         { Handles custom message }
         procedure HandleMessage(Message: PMsg); override;
+        
         { Init thread }
         procedure Init; override;
+        
         { Deinit thread }
         procedure Deinit; override;
+        
         { Thread message loop }
         procedure Loop; override;
+        
         { Data recieve event }
         procedure DataRecieved; virtual; abstract;
     end;
