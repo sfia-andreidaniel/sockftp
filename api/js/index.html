@@ -6,13 +6,15 @@
     <script>
         window.addEventListener('load', function() {
             
-            var ws = new WebSocket("ws://127.0.0.1:8181/socketserver", "sockftp");
+            var ws = window.ws = new WebSocket("ws://127.0.0.1:8181/socketserver", "sockftp");
             
             ( function( me ) {
                 
                 ws.addEventListener( 'open', function(evt) {
                     
                     console.warn( 'opened' );
+                    
+                    ws.send( 'Hello from browser' );
                     
                 }, false );
                 

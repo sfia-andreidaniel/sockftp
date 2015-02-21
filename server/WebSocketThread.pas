@@ -3,15 +3,21 @@ unit WebSocketThread;
 interface
 
 uses
-    SysUtils, Classes, NetworkSocket, ServerThread, StrUtils;
+    SysUtils, Classes, NetworkSocket, ServerThread, StrUtils, HTTP, WebSocketUtils;
 
 const
     STATE_WS_NOT_HANDSHAKED   = 0;
     STATE_WS_HANDSHAKED       = 1;
     STATE_WS_ERR_HANDSHAKE    = 2;
 
-    EWS_SEPARATOR_NOTFOUND    = 1;
-    EWS_SEPARATOR_TOO_LATE    = 2;
+    EWS_SEPARATOR_NOTFOUND    = 1; // read something by a separator, but the separator was not found
+    EWS_SEPARATOR_TOO_LATE    = 2; // read something by a separator, but the separator was encountered too far
+    EWS_BAD_METHOD            = 3; // bad method. Expected GET method (probably)
+    EWS_BAD_PROTOCOL          = 4; // bad protocol.
+    EWS_BAD_WEBSOCKET_VERSION = 5; // bad websocket version. ( Working on websocket 13 for now )
+    EWS_BAD_REQUEST           = 6; // bad request detected. (Bad headers, etc. )
+    EWS_BAD_KEY               = 7; // bad sec-websocket-key header
+    
 
 Type
 
@@ -28,7 +34,7 @@ Type
         { Thread state }
         State: Integer;
 
-        { String buffer }
+        { String SOCKET RAW INPUT buffer }
         Buffer: AnsiString;
 
         { String buffer length }
@@ -85,13 +91,16 @@ implementation
     procedure TWebSocketThread.ProcessData;
     begin
         // implement processing data
-        writeln( 'TWebSocketThread.ProcessData: ', State, ', ' , Buffer );
-        
         Case State of
             STATE_WS_NOT_HANDSHAKED:
+            begin
                 Handshake;
+            end;
             STATE_WS_HANDSHAKED:
+            begin
+                writeln( '> ' , Buffer );
                 ProcessFrame;
+            end
             else
                 Noop;
         end;
@@ -142,8 +151,25 @@ implementation
     end;
     
     procedure TWebSocketThread.HandShake;
-    var headers: AnsiString;
-        error: Boolean;
+    var headers : AnsiString;
+        error   : Boolean;
+        parser  : HTTPHeaderParser;
+        
+        wsConnection: AnsiString;
+        wsUpgrade   : AnsiString;
+        wsOrigin    : AnsiString;
+        wsVersion   : AnsiString; // sec-websocket-version
+        wsKey       : AnsiString; // sec-websocket-key
+        wsProtocol  : AnsiString; // sec-websocket-protocol
+        
+        wsRequestMethod: AnsiString;
+        wsRequestPath: AnsiString;
+        
+        handShakeResponse   : AnsiString; // the handshake buffer that will be sent back to client
+        
+        ecode: integer;
+        emsg : string;
+        
     begin
     
         error := false;
@@ -154,19 +180,96 @@ implementation
         
             if headers = '' then
             begin
+                // the headers were not sent completely.
+                // wait for more data...
                 exit;
             end;
+            
+            parser := HTTPHeaderParser.Create( headers );
+            
+            wsConnection := parser.getHeader( 'Connection', '' );
+            wsUpgrade    := parser.getHeader( 'Upgrade', '' );
+            wsOrigin     := parser.getHeader( 'Origin', '' );
+            wsVersion    := parser.getHeader( 'Sec-WebSocket-Version', '' );
+            wsKey        := parser.getHeader( 'Sec-WebSocket-Key', '' );
+            wsProtocol   := parser.getHeader( 'Sec-WebSocket-Protocol', '' );
+            
+            wsRequestMethod := parser.protocol;
+            wsRequestPath   := parser.requestPath;
+            
+            parser.Free;
+            
+            // compute the parsed values with what we want.
+            
+            // check request method
+            if wsRequestMethod <> 'GET' then
+            begin
+                ecode := EWS_BAD_METHOD;
+                emsg  := 'Bad websocket method. Allowed method for websocket is GET';
+                raise TWebSocketException.Create( ecode, emsg );
+            end;
+            
+            // TODO: check websocket path
+            
+            // check websocket connection
+            if wsConnection <> 'Upgrade' then
+            begin
+                ecode := EWS_BAD_REQUEST;
+                emsg  := 'Bad request ( the connection header is not "Upgrade" )';
+                raise TWebSocketException.Create( ecode, emsg );
+            end;
+            
+            // check if connection needs to be upgraded to websocket
+            if wsUpgrade <> 'websocket' then
+            begin
+                ecode := EWS_BAD_PROTOCOL;
+                emsg  := 'Bad protocol required for Upgrade ( expected WebSocket )';
+                raise TWebSocketException.Create( ecode, emsg );
+            end;
+            
+            // check if the version of the protocol is supported
+            if wsVersion <> '13' then
+            begin
+                ecode := EWS_BAD_WEBSOCKET_VERSION;
+                emsg  := 'Bad websocket version. This version is not supported.';
+                raise TWebSocketException.Create( ecode, emsg );
+            end;
+            
+            
+            if wsKey = '' then
+            begin
+                ecode := EWS_BAD_KEY;
+                emsg := 'Empty Sec-WebSocket-Key header';
+                raise TWebSocketException.Create( ecode, emsg );
+            end else
+            begin
+                // PARSE THE KEY. SEND THE HANDSHAKE MESSAGE.
+                handShakeResponse := 'HTTP/1.1 101 Switching Protocols'#13#10 +
+                             'Upgrade: websocket'#13#10 +
+                             'Connection: upgrade'#13#10 +
+                             'Sec-WebSocket-Accept: ' + websocket_13_compute_key( wsKey ) + #13#10 +
+                             'Sec-WebSocket-Protocol: ' + wsProtocol + #13#10#13#10;
                 
-            writeln( 'Got headers: ', headers );
-            writeln( 'Need to parse''m, and put the session to STATE_WS_HANDSHAKED' );
-            writeln( 'Remaining bufferLength: ', BufferLength );
+                //writeln( 'Sending back handshake: ' );
+                //writeln( handshakeResponse );
+                
+                Socket.writeStr( handshakeResponse );
+                
+                writeln( '* ', Socket.getAddress(), ' handshaked, proto_version=', wsVersion, ', proto=', wsProtocol );
+                
+            end;
+            
+            //writeln( 'Remaining bufferLength: ', BufferLength );
             
             
         
         except
             
-            On TWebSocketException Do
+            On E: TWebSocketException Do
+            begin
                 error := true;
+                writeln( 'TWebSocketException: ' + E.Message );
+            end;
         
         end;
         
@@ -178,12 +281,35 @@ implementation
                 
             State := STATE_WS_ERR_HANDSHAKE;
             
+            QuitNow := true;
+            
+        end else
+        begin
+            
+            // everything went fine. put the socket in the state of
+            // STATE_WS_HANDSHAKED
+            
+            State := STATE_WS_HANDSHAKED;
+            
         end;
         
     end;
     
     procedure TWebSocketThread.ProcessFrame;
+    var Frame: TWebSocket13Frame;
     begin
+    
+        writeln( 'Processing Frame...' );
+    
+        Frame := TWebSocket13Frame_Decode( Buffer );
+    
+        if Frame = NIL then
+            exit;
+        
+        writeln( 'Got Frame Data: ', Frame.PayloadData );
+        
+        Frame.Free;
+    
     end;
     
     procedure TWebSocketThread.NoOp;

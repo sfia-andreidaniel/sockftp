@@ -31,40 +31,67 @@ type
         
     { Network Socket using exceptions }
     TNetworkSocket = class
-        { Socket descriptor }
-        Sock: cint;
-        { Socket address }
-        Address: TInetSockAddr;
-        { Common buffer for string reading }
-        CommonBuffer: PNetworkBuffer;
-        { Common data block for string reading }
-        CommonDataBlock: PNetworkDataBlock1024;
-        { Constructor }
-        constructor Create;
-        { Constructor }
-        constructor Create(S: cint; Addr: TInetSockAddr);
-        { Destructor }
-        destructor Destroy; override;
-        { Bind server socket to the address/port }
-        procedure Bind(Addr: string; Port: integer);
-        { Listen for incoming connections }
-        procedure Listen;
-        { Returns connection socket }
-        function Accept: TNetworkSocket;
-        { Returns true if incoming connections are available }
-        function HasConnections(TimeoutMs: longint): boolean;
-        { Returns true if data is available in buffers }
-        function HasData(TimeoutMs: longint): boolean;
-        { Write data to socket }
-        procedure Write(Buffer: PNetworkBuffer);
-        { Write string to socket }
-        procedure WriteStr(s: AnsiString);
-        { Read data from socket }
-        procedure Read(Buffer: PNetworkBuffer);
-        { Read string from socket }
-        function ReadStr: AnsiString;
-        { Closes connection }
-        procedure Close;
+
+        public
+
+            { Socket descriptor }
+            Sock: cint;
+
+            { Socket address }
+            Address: TInetSockAddr;
+
+            { Common buffer for string reading }
+            CommonBuffer: PNetworkBuffer;
+
+            { Common data block for string reading }
+            CommonDataBlock: PNetworkDataBlock1024;
+
+
+
+
+
+            { Constructor }
+            constructor Create;
+
+            { Constructor }
+            constructor Create(S: cint; Addr: TInetSockAddr);
+
+            { Destructor }
+            destructor Destroy; override;
+
+            { Bind server socket to the address/port }
+            procedure Bind(Addr: string; Port: integer);
+
+            { Listen for incoming connections }
+            procedure Listen;
+
+            { Returns connection socket }
+            function Accept: TNetworkSocket;
+
+            { Returns true if incoming connections are available }
+            function HasConnections(TimeoutMs: longint): boolean;
+
+            { Returns true if data is available in buffers }
+            function HasData(TimeoutMs: longint): boolean;
+
+            { Write data to socket }
+            procedure Write(Buffer: PNetworkBuffer);
+
+            { Write string to socket }
+            procedure WriteStr(s: AnsiString);
+
+            { Read data from socket }
+            procedure Read(Buffer: PNetworkBuffer);
+
+            { Read string from socket }
+            function ReadStr: AnsiString;
+
+            { Closes connection }
+            procedure Close;
+        
+            { Address IP }
+            function getAddress(): AnsiString;
+        
     end;
 
 { Exception codes for TNetworkSocket operations }
@@ -136,6 +163,7 @@ implementation
         if fpSend(Sock, Buffer^.Buffer, Buffer^.Length, MSG_DONTWAIT or MSG_NOSIGNAL) < 0 then
         begin
             code := SocketError;
+            emsg := 'UNIX Socket Error #' + IntToStr( code );
             case code of
                 nseBadf: emsg := 'The socket descriptor is invalid.';
                 nseNotSock: emsg := 'The descriptor is not a socket.';
@@ -155,6 +183,7 @@ implementation
         if l < 0 then
         begin
             code := SocketError;
+            emsg := 'Unix Socket Erorr #' + IntToStr( code );
             case code of
                 nseBadf: emsg := 'The socket descriptor is invalid.';
                 nseNotSock: emsg := 'The descriptor is not a socket.';
@@ -182,6 +211,7 @@ implementation
         if nSock < 0 then
         begin
             code := SocketError;
+            emsg := 'UNIX Socket Error #' + intToStr( code );
             case code of
                 nseBadf: emsg := 'The socket descriptor is invalid.';
                 nseNotSock: emsg := 'The descriptor is not a socket.';
@@ -206,6 +236,7 @@ implementation
         
         if r < 0 then
         begin
+            emsg := 'Unix Socket Error #' + IntToStr( code );
             case code of
                 nseBadf: emsg := 'The socket descriptor is invalid.';
                 nseInval: emsg := 'N is negative or too big.';
@@ -242,6 +273,7 @@ implementation
         Dispose(timeout); Dispose(rfds);
         if r < 0 then
         begin
+            emsg := 'Unix Socket Error #' + IntToStr( code );
             case code of
                 nseBadf: emsg := 'The socket descriptor is invalid.';
                 nseInval: emsg := 'N is negative or too big.';
@@ -259,6 +291,7 @@ implementation
         if fpListen(Sock, 0) < 0 then
         begin
             code := SocketError;
+            emsg := 'Unix Socket Error #' + IntToStr( code );
             case code of
                 nseBadf: emsg := 'The socket descriptor is invalid.';
                 nseNotSock: emsg := 'The descriptor is not a socket.';
@@ -278,6 +311,7 @@ implementation
         if fpBind(Sock, @Address, sizeof(Address)) < 0 then
         begin
             code := SocketError;
+            emsg := 'Unix Socket Error #' + IntToStr( code );
             case code of
                 nseBadf: emsg := 'The socket descriptor is invalid.';
                 nseInval: emsg := 'The socket is already bound to an address.';
@@ -295,6 +329,7 @@ implementation
         if Sock < 0 then
         begin
             code := SocketError;
+            emsg := 'Unix Socket Error #' + IntToStr( code );
             case code of
                 nseProtoNoSupport: emsg := 'The protocol type or the specified protocol is not supported within this domain.';
                 nseMFile: emsg := 'The per-process descriptor table is full.';
@@ -324,6 +359,13 @@ implementation
         Dispose(CommonDataBlock);
         Dispose(CommonBuffer);
         inherited;    
+    end;
+    
+    function TNetworkSocket.getAddress(): AnsiString;
+    begin
+        
+        result := NetAddrToStr( Address.sin_addr );
+        
     end;
 
 end.
