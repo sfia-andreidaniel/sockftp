@@ -7,3 +7,8 @@ wsdaemon
 *.swo
 *.tmproj
 .DS_Store
+fp.cfg
+fp.dsk
+fp.ini
+testconfig
+testconfig.pas
