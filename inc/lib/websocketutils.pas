@@ -14,6 +14,9 @@ const
     FRAME_TYPE_PING         = $09;
     FRAME_TYPE_PONG         = $0A;
     
+    // What maximum length should a frame have
+    // in order to be fragmented
+    FRAME_FRAGMENT_AT       = 32768;
 
 type
     
@@ -49,6 +52,8 @@ type
             property    frameType: Byte read OpCode write setType;
         
             function    Encode(): AnsiString;
+        
+            function    EncodeWithFragmentation(): AnsiString;
         
             destructor Free();
         
@@ -111,6 +116,58 @@ begin
     end;
 end;
 
+function TWebSocket13Frame.EncodeWithFragmentation(): AnsiString;
+var Frames: Array of TWebSocket13Frame;
+    len: LongInt;
+    buffLen: LongInt;
+    i: Integer;
+    out: AnsiString;
+    buff: AnsiString;
+    Frame: TWebSocket13Frame;
+begin
+
+    buff := PayloadData;
+
+    BuffLen := Length( Buff );
+    Len := 0;
+
+    while buffLen > 0 do
+    begin
+        
+        Len := Len + 1;
+        
+        out := Copy( buff, 1, FRAME_FRAGMENT_AT );
+        
+        SetLength( Frames, Len );
+        
+        Frame := TWebSocket13Frame.Create( OpCode, Out );
+        Frame.FIN := FALSE;
+        Frames[ Len - 1 ] := Frame;
+        
+        Delete( Buff, 1, FRAME_FRAGMENT_AT );
+        
+        BuffLen := Length( Buff );
+        
+    end;
+
+    Frames[ Len - 1 ].FIN := TRUE;
+    
+    out := '';
+    
+    for i:=1 To Len Do
+    begin
+        
+        out := out + Frames[ i - 1 ].Encode();
+        
+        Frames[ i - 1 ].Free;
+        
+    end;
+
+    SetLength( Frames, 0 );
+
+    result := out;
+end;
+
 function TWebSocket13Frame.Encode(): AnsiString;
 var _FIN : Byte;
     _RSV1: Byte;
@@ -127,6 +184,14 @@ var _FIN : Byte;
 begin
     
     payloadLength := Length( payloadData );
+    
+    if payloadLength > FRAME_FRAGMENT_AT then
+    begin
+        
+        result := EncodeWithFragmentation;
+        exit;
+        
+    end;
     
     if FIN  then _FIN := 1 else _FIN := 0;
     if RSV1 then _RSV1 := 1 else _RSV1 := 0;

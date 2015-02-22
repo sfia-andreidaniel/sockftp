@@ -60,6 +60,9 @@ Type
 
         { Origin of the client }
         Origin: AnsiString;
+        
+        { Path of the request }
+        Path: AnsiString;
 
         { Launched when network data recieved }
         procedure DataRecieved; override;
@@ -92,6 +95,9 @@ Type
         
         { This procedure is called when the socket is connected, right after the handshake }
         procedure OnConnect(); virtual;
+        
+        { This procedure is called whenever a communication error occurs }
+        procedure OnError( Reason: AnsiString ); virtual;
         
         { Use this procedure to send text encapsulated inside of a Frame. }
         procedure SendText( msg: AnsiString );
@@ -136,6 +142,7 @@ implementation
         Protocol          := '';
         ProtocolVersion   := '';
         Origin            := '';
+        Path              := '';
     end;
 
     procedure TWebSocketThread.ProcessData;
@@ -158,9 +165,31 @@ implementation
 
     procedure TWebSocketThread.DataRecieved;
     begin
-        Buffer := Buffer + Socket.ReadStr;
-        BufferLength := Length(Buffer);
-        ProcessData;
+    
+        try
+    
+            Buffer := Buffer + Socket.ReadStr;
+            BufferLength := Length(Buffer);
+            ProcessData;
+        
+        except
+            
+            On E: Exception do
+            Begin
+                
+                if State = STATE_WS_HANDSHAKED then
+                begin
+                    
+                    OnError( E.Message );
+                    
+                end;
+                
+                QuitNow := True;
+                
+            End;
+        
+        end;
+        
     end;
     
     function TWebSocketThread.ReadSeparator( sequence: AnsiString; maxLength: LongInt ): AnsiString;
@@ -304,9 +333,10 @@ implementation
                 
                 Socket.writeStr( handshakeResponse );
                 
-                Protocol := wsProtocol;
+                Protocol        := wsProtocol;
                 ProtocolVersion := wsVersion;
-                Origin := wsOrigin;
+                Origin          := wsOrigin;
+                Path            := wsRequestPath;
                 
             end;
             
@@ -381,12 +411,24 @@ implementation
             End;
             FRAME_TYPE_PING:
             Begin
-                writeln( 'Got ping frame' );
                 SendPong();
             End;
             FRAME_TYPE_PONG:
-                writeln( 'Got pong frame' );
+            Begin
+                writeln( '* got PONG from ' + Socket.getAddress() );
+            End
             
+            Else
+            Begin
+                if State = STATE_WS_HANDSHAKED then
+                begin
+                    
+                    OnError( 'Unexpected OpCode from client: ' + IntToStr( Frame.OpCode ) );
+                    
+                end;
+                
+                QuitNow := TRUE;
+            End;
         end;
         
         Frame.Free;
@@ -395,7 +437,7 @@ implementation
     
     procedure TWebSocketThread.OnMessage( msg: TWebSocket13Frame );
     begin
-        SendText( msg.PayLoadData );
+        // SendText( msg.PayLoadData );
     end;
     
     procedure TWebSocketThread.SendText( msg: AnsiString );
@@ -403,16 +445,36 @@ implementation
         Str: AnsiString;
     begin
     
-        if not IsClosingByClient and not IsClosingByServer then
-        Begin
+        try
     
-            Frame := TWebSocket13Frame.Create( FRAME_TYPE_TEXT, msg );
-            Str :=  Frame.Encode();
-            Frame.Free;
+            if not IsClosingByClient and not IsClosingByServer then
+            Begin
     
-            Socket.WriteStr( Str );
+                Frame := TWebSocket13Frame.Create( FRAME_TYPE_TEXT, msg );
+                Str :=  Frame.Encode();
+                Frame.Free;
+    
+                Socket.WriteStr( Str );
+            
+            End;
         
-        End;
+        except
+        
+            On E: Exception Do
+            Begin
+                
+                if state = STATE_WS_HANDSHAKED then
+                begin
+                    
+                    OnError( E.Message );
+                    
+                end;
+                
+                QuitNow := TRUE;
+                
+            End;
+        
+        end;
     
     end;
     
@@ -421,15 +483,35 @@ implementation
         Str: AnsiString;
     begin
         
-        if not IsClosingByClient and not IsClosingByServer then
-        begin
+        try
         
-            Frame := TWebSocket13Frame.Create( FRAME_TYPE_BINARY, msg );
-            Str := Frame.Encode();
-            Frame.Free;
+            if not IsClosingByClient and not IsClosingByServer then
+            begin
         
-            Socket.WriteStr( Str );
+                Frame := TWebSocket13Frame.Create( FRAME_TYPE_BINARY, msg );
+                Str := Frame.Encode();
+                Frame.Free;
         
+                Socket.WriteStr( Str );
+            
+            end;
+        
+        except
+            
+            On E:Exception Do
+            begin
+                
+                if State = STATE_WS_HANDSHAKED then
+                begin
+                    
+                    OnError( E.Message );
+                    
+                end;
+                
+                QuitNow := TRUE;
+                
+            end;
+            
         end;
         
     end;
@@ -438,9 +520,29 @@ implementation
     var Frame: TWebSocket13Frame;
     begin
         
-        Frame := TWebSocket13Frame.Create( FRAME_TYPE_PONG, '' );
-        Socket.WriteStr( Frame.Encode() );
-        Frame.Free;
+        try
+        
+            Frame := TWebSocket13Frame.Create( FRAME_TYPE_PONG, '' );
+            Socket.WriteStr( Frame.Encode() );
+            Frame.Free;
+        
+        except
+            
+            On E:Exception Do
+            Begin
+                
+                if State = STATE_WS_HANDSHAKED then
+                begin
+                    
+                    OnError( E.Message );
+                    
+                end;
+                
+                QuitNow := TRUE;
+                
+            End;
+            
+        end;
         
     end;
     
@@ -460,9 +562,34 @@ implementation
     Begin
         if not IsClosingByClient then
         Begin
-            Frame := TWebSocket13Frame.Create( FRAME_TYPE_CLOSE, '' );
-            Socket.WriteStr( Frame.Encode() );
-            Frame.Free;
+        
+            try
+        
+                Frame := TWebSocket13Frame.Create( FRAME_TYPE_CLOSE, '' );
+                Socket.WriteStr( Frame.Encode() );
+                Frame.Free;
+            
+            except
+                
+                On E:Exception Do
+                begin
+                    
+                    if State = STATE_WS_HANDSHAKED then
+                    begin
+                        
+                        OnError( E.Message );
+                        
+                    end;
+                    
+                    isClosingByServer := TRUE;
+                    QuitNow := TRUE;
+                    
+                    exit;
+                    
+                end;
+            
+            end;
+            
         End;
         
         IsClosingByServer := TRUE;
@@ -496,6 +623,10 @@ implementation
 
         writeln( '* ', Socket.getAddress(), ' was connected (version "', ProtocolVersion, '", protocol "', Protocol, '" origin: "', Origin, '")' );
         
+    End;
+    
+    procedure TWebSocketThread.OnError( Reason: AnsiString );
+    Begin
     End;
     
     procedure TWebSocketThread.NoOp;

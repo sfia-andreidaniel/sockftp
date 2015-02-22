@@ -6,7 +6,7 @@ program wsdaemon;
 
 uses
     {$IFDEF UNIX}{$IFDEF UseCThreads} cthreads, {$ENDIF}{$ENDIF}
-    SysUtils, Classes, Daemon, DaemonApp, BaseUnix, WebSocketThread;
+    SysUtils, Classes, Daemon, DaemonApp, BaseUnix, WebSocketThread, SockFTP;
 
 var
     old, new: SigactionRec;
@@ -28,7 +28,7 @@ var
 begin
     
     // Registering threads, uses 8181 temporaly.
-    RegisterServerThread(8181, TWebSocketThread);
+    RegisterServerThread(8181, TSockFTP);
     
     // Registering daemon
     RegisterDaemonClass(TUnixDaemon);
