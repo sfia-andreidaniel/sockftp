@@ -5,7 +5,6 @@ interface
 
 function websocket_13_compute_key( RequestKey: AnsiString ): AnsiString;
 
-
 const
     
     FRAME_TYPE_CONTINUATION = $00;
@@ -18,7 +17,10 @@ const
 
 type
     
-    TByteArray        = Array of Byte;
+    TByteArray  = Array of Byte;
+    TByte16Buff = Array[0..1] of Byte;
+    TByte32Buff = Array[0..3] of Byte;
+    TByte64Buff = Array[0..7] of Byte;
     
     TWebSocket13Frame = Class
         
@@ -36,13 +38,17 @@ type
             RSV2          : Boolean;
             RSV3          : Boolean;
             MaskingKey    : AnsiString;
+            ActualLength  : Longint;
             PayloadLength : LongInt;
             PayloadData   : AnsiString;
         
             constructor Create();
+            constructor Create( cFrameType: Byte; const cPayloadData: AnsiString = '' );
             
             property    isMasked: boolean read Mask;
             property    frameType: Byte read OpCode write setType;
+        
+            function    Encode(): AnsiString;
         
             destructor Free();
         
@@ -69,6 +75,25 @@ begin
     MaskingKey    := '';
     PayloadLength := 0;
     PayloadData   := '';
+    ActualLength  := 0;
+    OpCode        := FRAME_TYPE_TEXT;
+    
+end;
+
+constructor TWebSocket13Frame.Create( cFrameType: Byte; const cPayloadData: AnsiString = '' );
+begin
+    
+    setType( cFrameType );
+    PayloadLength := Length( cPayloadData );
+    PayloadData   := cPayloadData;
+    Fin           := true;
+    
+    RSV1 := false;
+    RSV2 := false;
+    RSV3 := false;
+    MaskingKey := '';
+    
+    Mask := false;
     
 end;
 
@@ -84,6 +109,100 @@ begin
     begin
         Mask := true;
     end;
+end;
+
+function TWebSocket13Frame.Encode(): AnsiString;
+var _FIN : Byte;
+    _RSV1: Byte;
+    _RSV2: Byte;
+    _RSV3: Byte;
+    _Mask: Byte;
+    firstByte: Byte;
+    secondByte: Byte;
+    encoded: AnsiString;
+    bShort: TByte16Buff;
+    bMed  : TByte32Buff;
+    bLong : TByte64Buff;
+    eMask : AnsiString;
+begin
+    
+    payloadLength := Length( payloadData );
+    
+    if FIN  then _FIN := 1 else _FIN := 0;
+    if RSV1 then _RSV1 := 1 else _RSV1 := 0;
+    if RSV2 then _RSV2 := 1 else _RSV2 := 0;
+    if RSV3 then _RSV3 := 1 else _RSV3 := 0;
+    if Mask then _Mask := 1 else _Mask := 0;
+    
+    encoded := '';
+    
+    firstByte := OpCode + _FIN * 128 + _RSV1 * 64 + _RSV2 * 32 + _RSV3 * 16;
+    
+    encoded := encoded + chr( firstByte );
+    
+    if payloadLength <= 125 then
+    begin
+        secondByte := payloadLength;
+        secondByte := secondByte + _Mask * 128;
+        encoded := encoded + chr( secondByte );
+    end else
+    if payloadLength <= 65535 then
+    begin
+        secondByte := 126;
+        secondByte := secondByte + _Mask * 128;
+        encoded := encoded + chr( secondByte );
+        
+        bShort := TByte16Buff( Word( payloadLength ) );
+        
+        encoded := encoded + chr( bShort[0] ) + chr( bShort[1] );
+    end else
+    begin
+        secondByte := 127;
+        secondByte := secondByte + _Mask * 128;
+        
+        encoded := encoded + chr( secondByte );
+        
+        bMed := TByte32Buff( payloadLength );
+        
+        encoded := encoded + chr(0);
+        encoded := encoded + chr(0);
+        encoded := encoded + chr(0);
+        encoded := encoded + chr(0);
+        encoded := encoded + chr( bMed[0] );
+        encoded := encoded + chr( bMed[1] );
+        encoded := encoded + chr( bMed[2] );
+        encoded := encoded + chr( bMed[3] );
+    end;
+    
+    if Mask then
+    begin
+        
+        // write a random mask
+        
+        eMask := '';
+        
+        bLong := TByte64Buff( Random( 255 * 255 * 255 * 254 ) );
+        
+        eMask := chr( bLong[0] ) + chr( bLong[1] ) + chr( bLong[2] ) + chr( bLong[3] );
+        
+        encoded := encoded + eMask;
+        
+    end;
+    
+    if payloadLength > 0 then
+    begin
+        
+        if Mask then
+        begin
+            encoded := encoded + TWebSocket13Frame_RotateMask( payloadData, eMask, 0 );
+        end else
+        begin
+            encoded := encoded + payloadData;
+        end;
+    end;
+    
+    result := encoded;
+    
 end;
 
 function TWebSocket13Frame_isBitSet( B: Byte; pos: Byte ): Boolean;
@@ -192,6 +311,8 @@ begin
         exit;
     End;
     
+    frame.actualLength := frame.payloadLength;
+    
     PacketPayload := Copy( Buffer, 1, frame.payloadLength );
     
     // advance buffer
@@ -275,15 +396,8 @@ begin
     
     setLength( dBytes, lenData );
     setLength( out, lenData );
+
     // now xor bits in DBytes with bits in MBytes
-
-    write( 'Debug MBytes: ' );
-    for i := 0 to lenData - 1 do
-    begin
-        write( mBytes[ i ], ' ' );
-    end;
-    writeln();
-
     for i := 0 to lenData - 1 do
     begin
         dBytes[ i ] := ord( Data[ i + 1 ] );

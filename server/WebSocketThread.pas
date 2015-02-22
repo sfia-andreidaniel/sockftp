@@ -43,6 +43,23 @@ Type
         { CurrentPos in the buffer }
         CurrentPos: longint;
 
+        { Weather the client has initiated a close command }
+        IsClosingByClient: Boolean;
+        
+        { Weather the server has initiated a close command }
+        IsClosingByServer: Boolean;
+        
+        { Flag used to not call OnClose event more than once }
+        IsOnCloseCalled: Boolean;
+
+        { Protocol Name of the client }
+        Protocol: AnsiString;
+    
+        { Protocol version of the client }
+        ProtocolVersion: AnsiString;
+
+        { Origin of the client }
+        Origin: AnsiString;
 
         { Launched when network data recieved }
         procedure DataRecieved; override;
@@ -65,8 +82,35 @@ Type
         }
         procedure ProcessFrame;
         
+        { This procedure is called each time a Frame is successfully decoded
+          from the client.
+        }
+        procedure OnMessage( msg: TWebSocket13Frame ); virtual;
+        
+        { This procedure is called when the socket is closed }
+        procedure OnClose(); virtual;
+        
+        { This procedure is called when the socket is connected, right after the handshake }
+        procedure OnConnect(); virtual;
+        
+        { Use this procedure to send text encapsulated inside of a Frame. }
+        procedure SendText( msg: AnsiString );
+        
+        { Use this procedure to send binary data encapsulated inside of a Frame. }
+        procedure SendBinary( msg: AnsiString );
+        
+        { Use the Close command in order to close the connection from the server side }
+        procedure Close;
+        
+        { This routine is used automatically by the server, in order to
+          send a PONG message to the client }
+        procedure SendPong();
+        
         { Does nothing }
         procedure NoOp;
+        
+        { Routine called when the client wants to close the connection }
+        procedure CloseAtClientRequest;
 
     public
         
@@ -86,6 +130,12 @@ implementation
     begin
         inherited Create( Sock );
         State := STATE_WS_NOT_HANDSHAKED;
+        IsClosingByClient := FALSE;
+        IsClosingByServer := FALSE;
+        IsOnCloseCalled   := FALSE;
+        Protocol          := '';
+        ProtocolVersion   := '';
+        Origin            := '';
     end;
 
     procedure TWebSocketThread.ProcessData;
@@ -98,7 +148,6 @@ implementation
             end;
             STATE_WS_HANDSHAKED:
             begin
-                writeln( '> ' , Buffer );
                 ProcessFrame;
             end
             else
@@ -212,7 +261,7 @@ implementation
             // TODO: check websocket path
             
             // check websocket connection
-            if wsConnection <> 'Upgrade' then
+            if PosEX( 'Upgrade', wsConnection ) = 0 then
             begin
                 ecode := EWS_BAD_REQUEST;
                 emsg  := 'Bad request ( the connection header is not "Upgrade" )';
@@ -255,7 +304,9 @@ implementation
                 
                 Socket.writeStr( handshakeResponse );
                 
-                writeln( '* ', Socket.getAddress(), ' handshaked, proto_version=', wsVersion, ', proto=', wsProtocol );
+                Protocol := wsProtocol;
+                ProtocolVersion := wsVersion;
+                Origin := wsOrigin;
                 
             end;
             
@@ -291,6 +342,7 @@ implementation
             
             State := STATE_WS_HANDSHAKED;
             
+            OnConnect;
         end;
         
     end;
@@ -299,18 +351,152 @@ implementation
     var Frame: TWebSocket13Frame;
     begin
     
-        writeln( 'Processing Frame...' );
+        if isClosingByClient or isClosingByServer then
+        begin
+            // frames from the client are not processed anymore when
+            // a party chooses to close the connection.
+            exit;
+        end;
     
         Frame := TWebSocket13Frame_Decode( Buffer );
     
         if Frame = NIL then
             exit;
         
-        writeln( 'Got Frame Data: ', Frame.PayloadData );
+        case Frame.OpCode of
+            
+            FRAME_TYPE_CONTINUATION:
+                writeln( 'Got continuation frame!' );
+            FRAME_TYPE_TEXT:
+            Begin
+                onMessage( Frame );
+            End;
+            FRAME_TYPE_BINARY:
+            Begin
+                onMessage( Frame );
+            End;
+            FRAME_TYPE_CLOSE:
+            Begin
+                CloseAtClientRequest();
+            End;
+            FRAME_TYPE_PING:
+            Begin
+                writeln( 'Got ping frame' );
+                SendPong();
+            End;
+            FRAME_TYPE_PONG:
+                writeln( 'Got pong frame' );
+            
+        end;
         
         Frame.Free;
     
     end;
+    
+    procedure TWebSocketThread.OnMessage( msg: TWebSocket13Frame );
+    begin
+        SendText( msg.PayLoadData );
+    end;
+    
+    procedure TWebSocketThread.SendText( msg: AnsiString );
+    var Frame: TWebSocket13Frame;
+        Str: AnsiString;
+    begin
+    
+        if not IsClosingByClient and not IsClosingByServer then
+        Begin
+    
+            Frame := TWebSocket13Frame.Create( FRAME_TYPE_TEXT, msg );
+            Str :=  Frame.Encode();
+            Frame.Free;
+    
+            Socket.WriteStr( Str );
+        
+        End;
+    
+    end;
+    
+    procedure TWebSocketThread.SendBinary( msg: AnsiString );
+    var Frame: TWebSocket13Frame;
+        Str: AnsiString;
+    begin
+        
+        if not IsClosingByClient and not IsClosingByServer then
+        begin
+        
+            Frame := TWebSocket13Frame.Create( FRAME_TYPE_BINARY, msg );
+            Str := Frame.Encode();
+            Frame.Free;
+        
+            Socket.WriteStr( Str );
+        
+        end;
+        
+    end;
+    
+    procedure TWebSocketThread.SendPong();
+    var Frame: TWebSocket13Frame;
+    begin
+        
+        Frame := TWebSocket13Frame.Create( FRAME_TYPE_PONG, '' );
+        Socket.WriteStr( Frame.Encode() );
+        Frame.Free;
+        
+    end;
+    
+    procedure TWebSocketThread.CloseAtClientRequest;
+    Begin
+        isClosingByClient := true;
+        if not IsOnCloseCalled then
+        Begin
+            OnClose();
+            IsOnCloseCalled := TRUE;
+        End;
+        QuitNow := TRUE;
+    End;
+    
+    procedure TWebSocketThread.Close;
+    var Frame: TWebSocket13Frame;
+    Begin
+        if not IsClosingByClient then
+        Begin
+            Frame := TWebSocket13Frame.Create( FRAME_TYPE_CLOSE, '' );
+            Socket.WriteStr( Frame.Encode() );
+            Frame.Free;
+        End;
+        
+        IsClosingByServer := TRUE;
+        
+        if not IsOnCloseCalled Then
+        Begin
+            OnClose();
+            IsOnCloseCalled := TRUE;
+        End;
+
+        QuitNow := TRUE;
+    End;
+    
+    procedure TWebSocketThread.OnClose;
+    var msg: String;
+    Begin
+        msg := '* Connection with ' + Socket.getAddress() + ' has been CLOSED';
+        
+        if IsClosingByClient then
+            msg := msg + ' by client';
+        if IsClosingByClient and IsClosingByServer then
+            msg := msg + ' and';
+        if IsClosingByServer then
+            msg := msg + ' by server';
+        
+        writeln( msg );
+    End;
+    
+    procedure TWebSocketThread.OnConnect( );
+    Begin
+
+        writeln( '* ', Socket.getAddress(), ' was connected (version "', ProtocolVersion, '", protocol "', Protocol, '" origin: "', Origin, '")' );
+        
+    End;
     
     procedure TWebSocketThread.NoOp;
     begin
