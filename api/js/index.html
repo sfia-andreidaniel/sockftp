@@ -2,48 +2,52 @@
 <html>
 <head>
     <title>JavaScript api</title>
-    <script type="text/javascript" src="jsapi.js"></script>
+    <script type="text/javascript" src="SockFTP.js"></script>
     <script>
-        window.addEventListener('load', function() {
+        
+        var uploader = null;
+        
+        window.addEventListener( 'load', function() {
             
-            var ws = window.ws = new WebSocket("ws://127.0.0.1:8181/socketserver", "sockftp");
+            uploader = new SockFTP( '127.0.0.1', 8181, 'andrei', '12345' );
             
-            ( function( me ) {
+            uploader.on( 'log', function( logType ) {
                 
-                ws.addEventListener( 'open', function(evt) {
-                    
-                    console.warn( 'opened' );
-                    
-                    ws.send( 'Hello from browser' );
-                    
-                }, false );
+                if ( arguments.length > 1 ) {
                 
-                ws.addEventListener( 'message', function( evt ) {
-                    
-                    console.warn( 'message' );
-                    
-                    console.log( evt );
-                    
-                }, false );
+                    switch ( arguments.length ) {
+                        
+                        case 2:
+                            window.console[ logType ]( arguments[1] );
+                            break;
+                        case 3:
+                            window.console[ logType ]( arguments[1], arguments[2] );
+                            break;
+                        case 4:
+                            window.console[ logType ]( arguments[1], arguments[2], arguments[3] );
+                            break;
+                        case 5:
+                            window.console[ logType ]( arguments[1], arguments[2], arguments[3], arguments[4] );
+                            break;
+                        default:
+                            window.console[ logType ]( Array.prototype.slice.call( arguments, 1 ) );
+                            break;
+                    }
+                }
                 
-                ws.addEventListener( 'error', function( evt ) {
-                    
-                    console.warn( 'error' );
-                
-                }, false );
-                
-                ws.addEventListener( 'close', function( evt ) {
-                    
-                    console.warn( 'close' );
-                    
-                }, false );
-                
-            } )( this );
+            } );
             
+            uploader.bindTo( document.getElementById( 'uploader' ) );
             
         }, true );
+        
     </script>
 </head>
 <body>
+    
+    <label>Select file to upload:
+        <input type="file" id="uploader" />
+    </label>
+    
 </body>
 </html>
