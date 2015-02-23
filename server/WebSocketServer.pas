@@ -12,16 +12,23 @@ interface uses
     
 type
     
+    FWebSocketSessionFactory = function( AContext: TIdContext ) : TWebSocketSession of object;
+    
     TWebSocketServer = Class(TIdCustomTCPServer)
         
         protected
         
+            _Factory: FWebSocketSessionFactory;
+        
             procedure _OnConnect( AContext: TIdContext );
             procedure _OnDisconnect( AContext: TIdContext );
             procedure _OnExec( AContext: TIdContext );
+            procedure _SetFactory( F: FWebSocketSessionFactory );
         
         public
             procedure _SetupListeners;
+
+            property  Factory: FWebSocketSessionFactory read _Factory Write _SetFactory;
             
         
     End;
@@ -36,6 +43,11 @@ begin
     OnExecute    := _OnExec;
     OnDisconnect := _OnDisconnect;
 end;
+
+procedure TWebSocketServer._SetFactory( F: FWebSocketSessionFactory );
+begin
+    _Factory := F;
+End;
 
 procedure TWebSocketServer._OnConnect( AContext: TIdContext );
 var peerIp: String;
@@ -57,7 +69,7 @@ begin
 
     try
 
-        Session := TWebSocketSession.Create( AContext );
+        Session := _Factory( AContext );
 
         try
         

@@ -79,30 +79,31 @@ type
         
             { Path of the request }
             Path: AnsiString;
-        
+
             { Disconnects from the client. }
             procedure Disconnect;
-            
+
             { OnMessage Event }
-            procedure OnMessage( Data: AnsiString; Binary: Boolean ); Virtual;
-            
+            procedure OnMessage( Data: AnsiString; Binary: Boolean ); virtual;
+
             { OnError Event }
-            procedure OnError( Reason: String ); Virtual;
-            
+            procedure OnError( Reason: String ); virtual;
+
             { After Handshake }
-            procedure OnConnect; Virtual;
-            
+            procedure OnConnect; virtual;
+
             { OnDisconnect }
-            procedure OnDisconnect; Virtual;
-            
+            procedure OnDisconnect; virtual;
+
             { Sends Data As Text }
             procedure SendText( S: AnsiString );
-            
+
             { Sends Data as Binary }
             procedure SendBinary( B: AnsiString );
             
             
-            constructor Create( _session: TIdContext );
+            constructor Create( _session: TIdContext ); virtual;
+            
             procedure   Run;
             destructor  Free;
         

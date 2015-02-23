@@ -8,13 +8,13 @@ uses {$ifdef unix}cthreads, {$endif}
      SysUtils,
      custApp,
      IdGlobal,
-     WebSocketDaemon;
+     SockFTPDDaemon;
 
-var D: TWebSocketDaemon;
+var D: TSockFTPDDaemon;
 
 begin
 
-    D := TWebSocketDaemon.Create( '127.0.0.1', 8181 );
+    D := TSockFTPDDaemon.Create( '127.0.0.1', 8181 );
     
     try
 

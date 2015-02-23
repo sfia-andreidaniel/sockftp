@@ -5,7 +5,9 @@ interface uses
     {$ifdef unix}cthreads, {$endif}
     sysutils,
     contnrs,
-    WebSocketServer;
+    IdContext,
+    WebSocketServer,
+    WebSocketSession;
     
 type
     
@@ -17,11 +19,13 @@ type
         
         public
             
-            constructor Create( address: string; port: word );
+            constructor Create( address: string; port: word ); virtual;
 
             procedure   Run;
             
             destructor  Free;
+            
+            function    SessionFactory( AContext: TIdContext ): TWebSocketSession; virtual;
         
     End;
     
@@ -39,9 +43,16 @@ begin
     S.Bindings.Clear;
     S.DefaultPort     := port;
     S.Bindings.Add.IP := address;
-    
+
     S._SetupListeners;
+
+    S.Factory := SessionFactory;
     
+end;
+
+function TWebSocketDaemon.SessionFactory( AContext: TIdContext ): TWebSocketSession;
+begin
+    result := TWebSocketSession.Create( AContext );
 end;
 
 procedure TWebSocketDaemon.Run;
