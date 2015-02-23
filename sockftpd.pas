@@ -1,48 +1,29 @@
 program sockftpd;
-{ WebSocket daemon }
 
-{$mode objfpc}{$H+}
-{$define usecthreads}
+uses {$ifdef unix}cthreads, {$endif}
+     Classes,
+     IdBaseComponent,
+     IdCustomTCPServer,
+     IdContext,
+     SysUtils,
+     custApp,
+     IdGlobal,
+     WebSocketDaemon;
 
-uses
-    {$IFDEF UNIX}{$IFDEF UseCThreads} cthreads, {$ENDIF}{$ENDIF}
-    SysUtils, Classes, Daemon, DaemonApp, BaseUnix, WebSocketThread, SockFTP;
-
-var
-    old, new: SigactionRec;
-    
-    procedure DoShutDown(Sig: longint; Info: PSigInfo; Context: PSigContext); cdecl;
-    begin
-        case Sig of
-            SIGTERM, SIGQUIT, SIGINT: begin
-                Application.StopDaemons(true);
-                Application.Terminate;
-            end;
-            SIGHUP: begin
-                WriteLn('Reloading conf');
-                { TODO: Implement }
-            end;
-        end;
-    end;
+var D: TWebSocketDaemon;
 
 begin
+
+    D := TWebSocketDaemon.Create( '127.0.0.1', 8181 );
     
-    // Registering threads, uses 8181 temporaly.
-    RegisterServerThread(8181, TSockFTP);
+    try
+
+        D.Run;
     
-    // Registering daemon
-    RegisterDaemonClass(TUnixDaemon);
-    RegisterDaemonMapper(TUnixDaemonMapper);
-    Application.Title := 'SockFTP Daemon';
+    finally
     
-    // Signal handlers
-    New.sa_handler := @DoShutDown;
-    fpSigaction(SIGHUP, @New, @Old);
-    fpSigaction(SIGQUIT, @New, @Old);
-    fpSigaction(SIGTERM, @New, @Old);
-    fpSigaction(SIGINT, @New, @Old);
+        D.Free;
     
-    WriteLn('SockFTP daemon started');
-    // Go!
-    Application.Run;
+    end;
+
 end.
