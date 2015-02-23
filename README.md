@@ -1,1 +1,1 @@
-# sockftp
+# sockftpd

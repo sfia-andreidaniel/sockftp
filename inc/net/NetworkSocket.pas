@@ -34,6 +34,8 @@ type
 
         public
 
+	    CR: TRTLCriticalSection;
+
             { Socket descriptor }
             Sock: cint;
 
@@ -45,9 +47,6 @@ type
 
             { Common data block for string reading }
             CommonDataBlock: PNetworkDataBlock1024;
-
-
-
 
 
             { Constructor }
@@ -226,6 +225,9 @@ implementation
     function TNetworkSocket.HasData(TimeoutMs: longint): boolean;
     var timeout: ptimeval; rfds: PFDSet; r: integer; emsg: string; code: longint; arr: array[0..7] of char;
     begin
+	
+	EnterCriticalSection( CR );
+	
         New(timeout); timeout^.tv_sec := 0; timeout^.tv_usec := TimeoutMs * 1000;
         New(rfds); fpFD_Zero(rfds^); fpFD_Set(Sock, rfds^);
 
@@ -233,6 +235,8 @@ implementation
         code := SocketError;
 
         Dispose(timeout); Dispose(rfds);
+        
+        LeaveCriticalSection( CR );
         
         if r < 0 then
         begin
@@ -249,9 +253,21 @@ implementation
         else
         if r = 1 then
         begin
-            if fpRecv(Sock, @arr, 8, MSG_DONTWAIT or MSG_NOSIGNAL or MSG_PEEK) = 0 then
-                raise ENetworkSocketException.Create(nseConnectionClosed, 'Connection closed')
-            else result := true;
+        
+    	    EnterCriticalSection( CR );
+    	
+    	    try 
+        
+                if fpRecv(Sock, @arr, 8, MSG_DONTWAIT or MSG_NOSIGNAL or MSG_PEEK) = 0 then
+                    raise ENetworkSocketException.Create(nseConnectionClosed, 'Connection closed')
+                else result := true;
+            
+            finally
+        	
+        	LeaveCriticalSection( CR );
+    	    
+    	    end;
+            
         end
         else
         begin
@@ -262,6 +278,9 @@ implementation
     function TNetworkSocket.HasConnections(TimeoutMs: longint): boolean;
     var timeout: ptimeval; rfds: PFDSet; r: longint; emsg: string; code: longint;
     begin
+    
+	EnterCriticalSection( CR );
+    
         New(timeout); timeout^.tv_sec := 0; timeout^.tv_usec := TimeoutMs * 10000;
         New(rfds); fpFD_Zero(rfds^); fpFD_Set(Sock, rfds^);
 
@@ -271,6 +290,9 @@ implementation
         result := r = 1;
 
         Dispose(timeout); Dispose(rfds);
+        
+        LeaveCriticalSection( CR );
+        
         if r < 0 then
         begin
             emsg := 'Unix Socket Error #' + IntToStr( code );
@@ -328,6 +350,9 @@ implementation
     constructor TNetworkSocket.Create;
     var emsg: string; code: longint;
     begin
+    
+	InitCriticalSection( CR );
+    
         Sock := fpSocket(AF_INET, SOCK_STREAM, PF_UNSPEC);
         if Sock < 0 then
         begin
@@ -343,6 +368,7 @@ implementation
             emsg := 'Socket creation error: ' + emsg;
             raise ENetworkSocketException.Create(code, emsg);
         end;        
+
         New(CommonDataBlock);
         New(CommonBuffer);
         CommonBuffer^.Buffer := CommonDataBlock;
@@ -350,6 +376,8 @@ implementation
 
     constructor TNetworkSocket.Create(S: cint; Addr: TInetSockAddr);
     begin
+	InitCriticalSection( CR );
+	
         Sock := S;
         Address := Addr;
         New(CommonDataBlock);
@@ -361,6 +389,8 @@ implementation
     begin
         Dispose(CommonDataBlock);
         Dispose(CommonBuffer);
+        DoneCriticalSection( CR );
+        
         inherited;    
     end;
     

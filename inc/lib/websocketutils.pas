@@ -353,6 +353,8 @@ begin
         exit;
     end;
     
+    frame.Mask := true;
+    
     // If the frame is masked, try to read the mask from it. If the buffer
     // is insufficient, return NULL and try again next time.
     if ( frame.Mask ) then
@@ -371,6 +373,7 @@ begin
     // don't continue until we have a full frame.
     if ( BuffLen < frame.payloadLength ) then
     Begin
+	writeln( 'We did not continued until the frame is full (needed still ', frame.payloadLength - BuffLen, ' bytes), left membuffer to ', Length( MemBuffer ), ' assert: ', BuffLenSaved );
         Frame.Free;
         result := nil;
         exit;

@@ -164,18 +164,32 @@ implementation
     end;
 
     procedure TWebSocketThread.DataRecieved;
+    
+    var s: AnsiString;
+    
     begin
     
         try
     
-            Buffer := Buffer + Socket.ReadStr;
-            BufferLength := Length(Buffer);
-            ProcessData;
+	    s := Socket.ReadStr;
+    
+	    if ( Length( s ) > 0 ) then
+	    begin
+	
+		writeln( 'Got: ', Length(s), ' bytes' );
+    
+                Buffer := Buffer + s;
+                BufferLength := Length(Buffer);
+                ProcessData;
+            
+            end;
         
         except
             
             On E: Exception do
             Begin
+                
+                writeln( 'Read exception: ', E.Message );
                 
                 if State = STATE_WS_HANDSHAKED then
                 begin
@@ -185,9 +199,10 @@ implementation
                 end;
                 
                 QuitNow := True;
-                
+
             End;
         
+                
         end;
         
     end;
@@ -389,9 +404,14 @@ implementation
         end;
     
         Frame := TWebSocket13Frame_Decode( Buffer );
+	BufferLength := Length( Buffer );
+	
+	writeln( 'BufferLength: ', BufferLength );
     
         if Frame = NIL then
             exit;
+        
+        writeln( 'Frame: ', Frame.payloadData );
         
         case Frame.OpCode of
             

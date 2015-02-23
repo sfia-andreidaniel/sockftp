@@ -1,4 +1,4 @@
-program wsdaemon;
+program sockftpd;
 { WebSocket daemon }
 
 {$mode objfpc}{$H+}

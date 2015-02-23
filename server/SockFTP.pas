@@ -47,7 +47,7 @@ type
         
     end;
 
-implementation uses Classes, sysutils, uQuickJSON;
+implementation uses Classes, sysutils;
 
     Constructor TSockFTP.Create( Sock: TNetworkSocket );
     begin
@@ -57,29 +57,12 @@ implementation uses Classes, sysutils, uQuickJSON;
     end;
     
     procedure TSockFTP.OnMessage( msg: TWebSocket13Frame );
-    var O: TJSON;
-        Command: AnsiString;
     begin
         
         case msg.frameType of
             
             FRAME_TYPE_TEXT:
             begin
-                
-                try
-                
-                    writeln( msg.payloadData );
-                
-                    O := TJSON.Create( msg.payloadData );
-                    Command := O.getValue( 'cmd' );
-                    O.Free;
-                
-                    writeln( 'Command: ', Command );
-                
-                Finally
-                
-                end;
-                
             end;
             
             FRAME_TYPE_BINARY:
