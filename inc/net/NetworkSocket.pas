@@ -308,6 +308,9 @@ implementation
         Address.Family := af_inet;
         Address.Port := htons(Port);
         Address.Addr := LongWord(StrToNetAddr(Addr));
+        
+        {$IFNDEF MSWINDOWS}fpSetSockOpt(Sock, SOL_SOCKET, SO_REUSEADDR, @Address, SizeOf(Address));{$ENDIF} // remedy socket port locking on Posix platforms
+        
         if fpBind(Sock, @Address, sizeof(Address)) < 0 then
         begin
             code := SocketError;
