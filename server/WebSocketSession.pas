@@ -11,6 +11,7 @@ interface uses
     StrUtils,
     HTTP,
     WebSocketUtils,
+    StringsLib,
     Logger;
 
 var SessionID: LongInt;
@@ -27,6 +28,9 @@ type
             Ctx: TIdContext;
             Ip : String;
             Id : LongInt;
+            
+            { The list with allowed origins list from which this session is accepting connections }
+            Origins : TStrArray;
             
             { Weather the client initiated a disconnect }
             disconnectedByClient: Boolean;
@@ -70,17 +74,25 @@ type
             { Sends a disconnect message }
             procedure   SendDisconnect;
             
+            
         public
         
-            { Protocol Name of the client }
+            { Protocol Name of the client (EG: "myservice"). If Set to "" or "*", any protocol will be accepted during handshake }
             Protocol: AnsiString;
     
-            { Origin of the client }
+            { Origin of the client. It is set while handshaking. It must be a valid origin, contained in the "Origins" property. }
             Origin: AnsiString;
         
-            { Path of the request }
+            { Path of the request. It is set while handshaking }
             Path: AnsiString;
 
+            { Class constructor
+              @_Session: An Indy Context
+              @_Protocol: The name of the protocol on which this session will permit during handshake
+              @_Origins: An array of valid origins for which this session will accept connections.
+            }
+            constructor Create( _Session: TIdContext; _Protocol: String; _Origins: TStrArray ); virtual;
+            
             { Disconnects from the client. }
             procedure Disconnect;
 
@@ -102,9 +114,6 @@ type
             { Sends Data as Binary }
             procedure SendBinary( B: AnsiString );
             
-            
-            constructor Create( _session: TIdContext ); virtual;
-            
             procedure   Run;
             destructor  Free;
         
@@ -121,13 +130,13 @@ end;
 { OnError Event }
 procedure TWebSocketSession.OnError( Reason: String );
 begin
-    Console.Error( 'Session #', ID, ' error: ', Reason );
+    Console.Error( 'Session #' + IntToStr(ID) + ' ( IP: "' + IP + '" ):', Reason );
 end;
 
 { After Handshake }
 procedure TWebSocketSession.OnConnect;
 begin
-    Console.Log( 'Session #', ID, ' connected' );
+    Console.Log( 'Session #' + IntToStr(ID) + ' connected ( IP: "' + IP + '", Origin: "' + Origin + '", Protocol: "' + Protocol + '" )' );
 end;
 
 { OnDisconnect }
@@ -229,10 +238,18 @@ begin
         if CanRead( 100 ) then
         begin
             
+            if ( Length( BufferIn ) > 4096 ) then
+            begin
+                Console.Error( 'Session #' + IntToStr(ID) + ' ( IP: "' + IP + '" ): FLOOD ATTEMPT (Request header too big, > 4K).' );
+                exit;
+            end;
+
+            
             Headers := ReadUntil( #13#10#13#10 );
             
             if ( Headers = '' ) then
             Begin
+                Console.Error( 'Session #' + IntToStr(ID) + ' ( IP: "' + IP + '" ): HandshakeError: Headers not sent correctly in 100ms.' );
                 result := FALSE;
             End else
             Begin
@@ -255,12 +272,21 @@ begin
                 
                     Key := Parser.getHeader( 'Sec-WebSocket-Key', '' );
                 
+                    if not websocket_13_protocol_valid( Parser.getHeader('Sec-WebSocket-Protocol', '' ), Protocol ) then
+                        raise Exception.Create( 'Invalid websocket protocol. Want: "' + Protocol + '", Got: "' + Parser.getHeader('Sec-WebSocket-Protocol', '' ) + '"' );
+                    
                     if Key = '' then
                         raise Exception.Create( 'The sec-websocket-key is not provided or empty' );
                     
-                    Protocol := Parser.getHeader('Sec-WebSocket-Protocol', '' );
+                    
                     Path     := Parser.requestPath;
+
                     Origin   := Parser.getHeader( 'Origin', '' );
+                    
+                    if not websocket_13_origin_valid( Origin, Origins ) then
+                    begin
+                        raise Exception.Create( 'Origin "' + Origin + '" was rejected by session configuration' );
+                    end;
                 
                     HandShakeResponse := 'HTTP/1.1 101 Switching Protocols'#13#10 +
                         'Upgrade: websocket'#13#10 +
@@ -276,6 +302,10 @@ begin
                 except
                     
                     On E: Exception Do Begin
+                        
+                        Console.Error( 'Session #' + IntToStr(ID) + ' ( IP: "' + IP + '" ): HandShakeError: ' + E.Message );
+                        result := false;
+                        
                     End;
                 
                 end;
@@ -286,6 +316,7 @@ begin
             
         end else
         begin
+            Console.Error( 'Session #' + IntToStr(ID) + ' ( IP: "' + IP + '" ): HandShakeError: Headers not sent at in 100ms.' );
             result := FALSE;
         End;
     
@@ -397,7 +428,7 @@ begin
     
 end;
 
-constructor TWebSocketSession.Create( _session: TIdContext );
+constructor TWebSocketSession.Create( _Session: TIdContext; _Protocol: String; _Origins: TStrArray );
 begin
     ctx                  := _session;
     ip                   := ctx.Connection.Socket.Binding.PeerIP;
@@ -408,7 +439,9 @@ begin
     bufferOut            := '';
     onDisconnectCalled   := FALSE;
     
-    Protocol := '';
+    Protocol := _Protocol;
+    Origins  := _Origins;
+    
     Origin := '';
     Path := '';
     

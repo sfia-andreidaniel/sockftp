@@ -17,8 +17,6 @@ type
 
         public
 
-            constructor Create( _session: TIdContext ); override;
-
             { OnMessage Event }
             procedure OnMessage( Data: AnsiString; Binary: Boolean ); override;
 
@@ -34,11 +32,6 @@ type
     end;
 
 implementation
-
-constructor TSockFTPDSession.Create( _session: TIdContext );
-begin
-    inherited Create( _session );
-end;
 
 procedure TSockFTPDSession.OnMessage( Data: AnsiString; Binary: Boolean );
 Begin

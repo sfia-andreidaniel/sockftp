@@ -1,9 +1,15 @@
 {$mode objfpc}
 {$H+}
 unit WebSocketUtils;
-interface
 
-function websocket_13_compute_key( RequestKey: AnsiString ): AnsiString;
+interface uses 
+    {$ifdef unix}cthreads, {$endif}
+    StrUtils,
+    StringsLib;
+
+function websocket_13_compute_key    ( RequestKey: AnsiString ): AnsiString;
+function websocket_13_protocol_valid ( OfferedProtocol: AnsiString; WantProtocol: AnsiString   ): Boolean;
+function websocket_13_origin_valid   ( OfferedOrigin: AnsiString; AllowedOriginsList: TStrArray ): Boolean;
 
 const
     
@@ -66,6 +72,7 @@ function TWebSocket13Frame_Decode    ( var MemBuffer: AnsiString ): TWebSocket13
 implementation
 
 uses cHash, base64;
+
 const GLOBAL_UNIQUE_IDENTIFIER = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 
 
@@ -484,5 +491,78 @@ begin
     result  := EncodeStringBase64( SHA1DigestAsString( CalcSHA1( sresult ) ) );
 end;
 
+function websocket_13_protocol_valid ( OfferedProtocol: AnsiString; WantProtocol: AnsiString ): Boolean;
+var parts: TStrArray;
+    i: Longint;
+begin
+    
+    result := false;
+    
+    if ( WantProtocol = '' ) or ( WantProtocol = '*' ) then
+    begin
+        result := true;
+        exit;
+    end;
+    
+    parts := str_split( OfferedProtocol, [ ' ', #9, #10, #13, ',' ] );
+    
+    if length(parts) = 0 then
+        exit;
+    
+    for i:=1 to length( parts ) do
+    begin
+        if parts[i-1] = WantProtocol then
+        begin
+            result := true;
+            exit;
+        end;
+    end;
+    
+end;
+
+function websocket_13_origin_valid( OfferedOrigin: AnsiString; AllowedOriginsList: TStrArray ): Boolean;
+var i: Longint;
+    len: Longint;
+begin
+    
+    result := FALSE;
+    
+    Len := Length( AllowedOriginsList );
+    
+    if Len = 0 then
+        exit;
+    
+    for i := 0 to Len - 1 do begin
+    
+        if ( AllowedOriginsList[i] = '*' ) or ( AllowedOriginsList[i] = 'null' ) then
+        begin
+            
+            result := TRUE;
+            exit;
+            
+        end else
+        begin
+            
+            if posEX( AllowedOriginsList[i], offeredOrigin ) = 1 then
+            begin
+                
+                if ( offeredOrigin = AllowedOriginsList[i] ) or
+                   ( posEX( AllowedOriginsList[i] + '?', offeredOrigin ) = 1 ) or
+                   ( posEX( AllowedOriginsList[i] + '#', offeredOrigin ) = 1 ) or
+                   ( posEX( AllowedOriginsList[i] + '/', offeredOrigin ) = 1 )
+                then begin
+                    
+                    result := TRUE;
+                    exit;
+                    
+                end;
+                
+            end;
+        
+        end;
+
+    end;
+    
+end;
 
 end.

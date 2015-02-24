@@ -2,7 +2,12 @@
 
 unit SockFTPDManager;
 
-interface uses {$ifdef unix}cthreads, {$endif} IniFiles, sysutils, Logger;
+interface uses 
+    {$ifdef unix}cthreads, {$endif}
+    IniFiles,
+    sysutils,
+    Logger,
+    StringsLib;
 
 const PATH_SEPARATOR = {$ifdef WIN32}'\'{$else}'/'{$endif};
 
@@ -43,12 +48,17 @@ type
             users: TUserConfigList;
             numUsers: LongInt;
             
+            _origins: TStrArray;
+            
             function getServerPort(): Word;
             function getServerName(): AnsiString;
             function getFileSystemRoot(): AnsiString;
             function getFileSystemDirFormat(): AnsiString;
             function getWebServerFileFormat(): AnsiString;
             function getServerProtocolName(): AnsiString;
+            function getServerListenInterface(): AnsiString;
+            function getOriginsList(): TStrArray;
+            function getLoggingLevel: AnsiString;
         
         public
         
@@ -56,23 +66,25 @@ type
         
             property ServerPort: Word read getServerPort;
             property ServerName: AnsiString read getServerName;
+            property ServerListenInterface: AnsiString read getServerListenInterface;
             property ServerProtocolName: AnsiString read getServerProtocolName;
             
             property FileSystemRoot: AnsiString read getFileSystemRoot;
             property FileSystemDirFormat: AnsiString read getFileSystemDirFormat;
             property WebServerFileFormat: AnsiString read getWebServerFileFormat;
+            property AllowedOriginsList: TStrArray read getOriginsList;
+            property LoggingLevel: AnsiString read getLoggingLevel;
             
             function  getUserQuota( userName: AnsiString ): LongInt;
             procedure setUserFreeSpace( userName: AnsiString; Space: LongInt; const Flush: Boolean = false );
             function  getUserFreeSpace( userName: AnsiString ): LongInt;
             function  allocateUserSpace( userName: AnsiString; HowMuch: LongInt ): Boolean;
             
-            function userLogin( userName: AnsiString; password: AnsiString ): boolean;
-            function userExists( userName: AnsiString ): boolean;
+            function  userLogin( userName: AnsiString; password: AnsiString ): boolean;
+            function  userExists( userName: AnsiString ): boolean;
             
-            function createUserDir( userName: AnsiString ): boolean;
-            
-            function prepareString( s: AnsiString; const User: AnsiString = ''; const FileName: AnsiString = '' ): AnsiString;
+            function  createUserDir( userName: AnsiString ): boolean;
+            function  prepareString( s: AnsiString; const User: AnsiString = ''; const FileName: AnsiString = '' ): AnsiString;
             
             destructor Free();
     end;
@@ -99,6 +111,7 @@ begin
     ini := TIniFile.Create( getApplicationDir() + PATH_SEPARATOR + iniFileName );
     
     setLength( Users, 0 );
+    setLength( _origins, 0 );
     
     // Read the users from the ini file.
     
@@ -134,6 +147,33 @@ begin
     
     UsersList.Destroy;
     
+    { Load the origins. Sorry for reusing the UsersList, numUsers here }
+    
+    UsersList := TStringList.Create();
+    
+    ini.ReadSectionValues( 'origins', UsersList );
+    
+    numUsers := UsersList.Count;
+    
+    setLength( _Origins, 0 );
+    
+    for i := 0 to numUsers - 1 do
+    begin
+        
+        if ( UsersList.ValueFromIndex[i] <> '' ) then
+        begin
+        
+            setLength( _origins, Length( _origins ) + 1 );
+    
+            _origins[ i ] := UsersList.ValueFromIndex[i];
+        
+        end;
+        
+    end;
+    
+    
+    
+    
 end;
 
 destructor TSockFTPDManager.Free();
@@ -144,6 +184,20 @@ begin
     
     DoneCriticalSection( CS );
 
+end;
+
+function TSockFTPDManager.getOriginsList(): TStrArray;
+begin
+    
+    if Length( _origins ) = 0 then
+    begin
+        setLength( result, 1 );
+        result[0] := '*';
+        exit;
+    end;
+    
+    result := _origins;
+    
 end;
 
 function TSockFTPDManager.getUserQuota( userName: AnsiString ): longInt;
@@ -235,6 +289,16 @@ begin
     
 end;
 
+function TSockFTPDManager.getLoggingLevel(): AnsiString;
+begin
+    
+    result := ini.readString( 'daemon', 'loglevel', '0' );
+    
+    if ( result <> '0' ) and ( result <> '1' ) and ( result <> '2' ) and ( result <> '3' ) then
+        result := '0';
+    
+end;
+
 function TSockFTPDManager.getFileSystemRoot(): AnsiString;
 begin
     
@@ -246,6 +310,13 @@ function TSockFTPDManager.getFileSystemDirFormat(): AnsiString;
 begin
     
     result := ini.readString( 'filesystem', 'dirformat', '%D%_%M%_%Y%' );
+    
+end;
+
+function TSockFTPDManager.getServerListenInterface(): AnsiString;
+begin
+    
+    result := ini.readString( 'daemon', 'listen', '0.0.0.0' );
     
 end;
 

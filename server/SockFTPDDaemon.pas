@@ -6,7 +6,8 @@ interface uses
     IdContext,
     WebSocketDaemon,
     WebSocketSession,
-    SockFTPDSession;
+    SockFTPDSession,
+    SockFTPDManager;
     
 type
     
@@ -20,7 +21,7 @@ implementation uses IdGlobal, IdCustomTCPServer;
 
 function TSockFTPDDaemon.SessionFactory( AContext: TIdContext ): TWebSocketSession;
 begin
-    result := TSockFTPDSession.Create( AContext );
+    result := TSockFTPDSession.Create( AContext, Protocol, Origins );
 end;
 
 end.

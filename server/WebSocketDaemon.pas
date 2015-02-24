@@ -8,7 +8,8 @@ interface uses
     IdContext,
     WebSocketServer,
     WebSocketSession,
-    Logger;
+    Logger,
+    StringsLib;
     
 type
     
@@ -17,10 +18,15 @@ type
         protected
             
             S: TWebSocketServer;
+            
+            Protocol: String;    // the protocol name which this daemon implements
+            Origins : TStrArray; // allowed origins list for the clients.
+            Address : String;
+            Port    : Word;
         
         public
             
-            constructor Create( address: string; port: word ); virtual;
+            constructor Create( _Address: string; _Port: word; const _Protocol: String; const _Origins: TStrArray  ); virtual;
 
             procedure   Run;
             
@@ -32,10 +38,21 @@ type
     
 implementation uses IdGlobal, IdCustomTCPServer;
 
-constructor TWebSocketDaemon.Create( address: string; port: word );
+constructor TWebSocketDaemon.Create( _Address: string; _Port: word; const _Protocol: String; const _Origins: TStrArray );
+var i: Longint;
 begin
     
-    Console.log( 'Initializing server on ', address, ':', port, ' ...' );
+    Address := _Address;
+    Port    := _Port;
+    Protocol:= _Protocol;
+    Origins := _Origins;
+    
+    Console.log( 'Initializing server on ', Address, ':', Port, ' ...' );
+    
+    for i := 1 to Length( _Origins ) do
+    begin
+        Console.log( 'Allowing origin: ', _origins[ i - 1 ] );
+    end;
     
     S := TWebSocketServer.Create;
     
@@ -53,7 +70,7 @@ end;
 
 function TWebSocketDaemon.SessionFactory( AContext: TIdContext ): TWebSocketSession;
 begin
-    result := TWebSocketSession.Create( AContext );
+    result := TWebSocketSession.Create( AContext, Protocol, Origins );
 end;
 
 procedure TWebSocketDaemon.Run;

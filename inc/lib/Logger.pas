@@ -14,6 +14,10 @@ type
         
         public
             
+            logEnabled   : Boolean;
+            errorEnabled : Boolean;
+            warnEnabled  : Boolean;
+            
             function  time: AnsiString;
             
             procedure log( a1: variant );
@@ -61,6 +65,9 @@ implementation uses dos;
 constructor TLogger.Create;
 begin
     InitCriticalSection( cs );
+    logEnabled := TRUE;
+    errorEnabled := TRUE;
+    warnEnabled := TRUE;
 end;
 
 destructor TLogger.Free;
@@ -106,6 +113,7 @@ end;
 
 procedure TLogger.log( a1: variant );
 begin
+    if ( not logEnabled ) then exit;
     EnterCriticalSection(cs);
     writeln( 'LOG', ' ', Time, ': ', a1 );
     LeaveCriticalSection(cs);
@@ -113,6 +121,7 @@ end;
 
 procedure TLogger.log( a1: variant; a2: variant );
 begin
+    if ( not logEnabled ) then exit;
     EnterCriticalSection(cs);
     writeln( 'LOG', ' ', Time, ': ', a1, ' ', a2 );
     LeaveCriticalSection(cs);
@@ -120,6 +129,7 @@ end;
 
 procedure TLogger.log( a1: variant; a2: variant; a3: variant );
 begin
+    if ( not logEnabled ) then exit;
     EnterCriticalSection(cs);
     writeln( 'LOG', ' ', Time, ': ', a1, ' ', a2, ' ', a3 );
     LeaveCriticalSection(cs);
@@ -127,6 +137,7 @@ end;
 
 procedure TLogger.log( a1: variant; a2: variant; a3: variant; a4: variant );
 begin
+    if ( not logEnabled ) then exit;
     EnterCriticalSection(cs);
     writeln( 'LOG', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4 );
     LeaveCriticalSection(cs);
@@ -134,6 +145,7 @@ end;
 
 procedure TLogger.log( a1: variant; a2: variant; a3: variant; a4: variant; a5: variant );
 begin
+    if ( not logEnabled ) then exit;
     EnterCriticalSection(cs);
     writeln( 'LOG', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5 );
     LeaveCriticalSection(cs);
@@ -141,6 +153,7 @@ end;
 
 procedure TLogger.log( a1: variant; a2: variant; a3: variant; a4: variant; a5: variant; a6: variant );
 begin
+    if ( not logEnabled ) then exit;
     EnterCriticalSection(cs);
     writeln( 'LOG', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6 );
     LeaveCriticalSection(cs);
@@ -148,6 +161,7 @@ end;
 
 procedure TLogger.log( a1: variant; a2: variant; a3: variant; a4: variant; a5: variant; a6: variant; a7: variant );
 begin
+    if ( not logEnabled ) then exit;
     EnterCriticalSection(cs);
     writeln( 'LOG', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7 );
     LeaveCriticalSection(cs);
@@ -155,6 +169,7 @@ end;
 
 procedure TLogger.log( a1: variant; a2: variant; a3: variant; a4: variant; a5: variant; a6: variant; a7: variant; a8: variant );
 begin
+    if ( not logEnabled ) then exit;
     EnterCriticalSection(cs);
     writeln( 'LOG', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8 );
     LeaveCriticalSection(cs);
@@ -162,6 +177,7 @@ end;
 
 procedure TLogger.log( a1: variant; a2: variant; a3: variant; a4: variant; a5: variant; a6: variant; a7: variant; a8: variant; a9: variant );
 begin
+    if ( not logEnabled ) then exit;
     EnterCriticalSection(cs);
     writeln( 'LOG', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9 );
     LeaveCriticalSection(cs);
@@ -169,6 +185,7 @@ end;
 
 procedure TLogger.log( a1: variant; a2: variant; a3: variant; a4: variant; a5: variant; a6: variant; a7: variant; a8: variant; a9: variant; a10: variant );
 begin
+    if ( not logEnabled ) then exit;
     EnterCriticalSection(cs);
     writeln( 'LOG', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9, ' ', a10 );
     LeaveCriticalSection(cs);
@@ -176,141 +193,161 @@ end;
 
 procedure TLogger.error( a1: variant );
 begin
+    if ( not logEnabled ) then exit;
     EnterCriticalSection(cs);
-    writeln( 'ERROR', ' ', Time, ': ', a1 );
+    writeln( 'ERR', ' ', Time, ': ', a1 );
     LeaveCriticalSection(cs);
 end;
 
 procedure TLogger.error( a1: variant; a2: variant );
 begin
+    if ( not errorEnabled ) then exit;
     EnterCriticalSection(cs);
-    writeln( 'ERROR', ' ', Time, ': ', a1, ' ', a2 );
+    writeln( 'ERR', ' ', Time, ': ', a1, ' ', a2 );
     LeaveCriticalSection(cs);
 end;
 
 procedure TLogger.error( a1: variant; a2: variant; a3: variant );
 begin
+    if ( not errorEnabled ) then exit;
     EnterCriticalSection(cs);
-    writeln( 'ERROR', ' ', Time, ': ', a1, ' ', a2, ' ', a3 );
+    writeln( 'ERR', ' ', Time, ': ', a1, ' ', a2, ' ', a3 );
     LeaveCriticalSection(cs);
 end;
 
 procedure TLogger.error( a1: variant; a2: variant; a3: variant; a4: variant );
 begin
+    if ( not errorEnabled ) then exit;
     EnterCriticalSection(cs);
-    writeln( 'ERROR', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4 );
+    writeln( 'ERR', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4 );
     LeaveCriticalSection(cs);
 end;
 
 procedure TLogger.error( a1: variant; a2: variant; a3: variant; a4: variant; a5: variant );
 begin
+    if ( not errorEnabled ) then exit;
     EnterCriticalSection(cs);
-    writeln( 'ERROR', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5 );
+    writeln( 'ERR', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5 );
     LeaveCriticalSection(cs);
 end;
 
 procedure TLogger.error( a1: variant; a2: variant; a3: variant; a4: variant; a5: variant; a6: variant );
 begin
+    if ( not errorEnabled ) then exit;
     EnterCriticalSection(cs);
-    writeln( 'ERROR', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6 );
+    writeln( 'ERR', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6 );
     LeaveCriticalSection(cs);
 end;
 
 procedure TLogger.error( a1: variant; a2: variant; a3: variant; a4: variant; a5: variant; a6: variant; a7: variant );
 begin
+    if ( not errorEnabled ) then exit;
     EnterCriticalSection(cs);
-    writeln( 'ERROR', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7 );
+    writeln( 'ERR', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7 );
     LeaveCriticalSection(cs);
 end;
 
 procedure TLogger.error( a1: variant; a2: variant; a3: variant; a4: variant; a5: variant; a6: variant; a7: variant; a8: variant );
 begin
+    if ( not errorEnabled ) then exit;
     EnterCriticalSection(cs);
-    writeln( 'ERROR', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8 );
+    writeln( 'ERR', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8 );
     LeaveCriticalSection(cs);
 end;
 
 procedure TLogger.error( a1: variant; a2: variant; a3: variant; a4: variant; a5: variant; a6: variant; a7: variant; a8: variant; a9: variant );
 begin
+    if ( not errorEnabled ) then exit;
     EnterCriticalSection(cs);
-    writeln( 'ERROR', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9 );
+    writeln( 'ERR', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9 );
     LeaveCriticalSection(cs);
 end;
 
 procedure TLogger.error( a1: variant; a2: variant; a3: variant; a4: variant; a5: variant; a6: variant; a7: variant; a8: variant; a9: variant; a10: variant );
 begin
+    if ( not errorEnabled ) then exit;
     EnterCriticalSection(cs);
-    writeln( 'ERROR', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9, ' ', a10 );
+    writeln( 'ERR', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9, ' ', a10 );
     LeaveCriticalSection(cs);
 end;
 
 procedure TLogger.warn( a1: variant );
 begin
+    if ( not warnEnabled ) then exit;
     EnterCriticalSection(cs);
-    writeln( 'WARN', ' ', Time, ': ', a1 );
+    writeln( 'WRN', ' ', Time, ': ', a1 );
     LeaveCriticalSection(cs);
 end;
 
 procedure TLogger.warn( a1: variant; a2: variant );
 begin
+    if ( not warnEnabled ) then exit;
     EnterCriticalSection(cs);
-    writeln( 'WARN', ' ', Time, ': ', a1, ' ', a2 );
+    writeln( 'WRN', ' ', Time, ': ', a1, ' ', a2 );
     LeaveCriticalSection(cs);
 end;
 
 procedure TLogger.warn( a1: variant; a2: variant; a3: variant );
 begin
+    if ( not warnEnabled ) then exit;
     EnterCriticalSection(cs);
-    writeln( 'WARN', ' ', Time, ': ', a1, ' ', a2, ' ', a3 );
+    writeln( 'WRN', ' ', Time, ': ', a1, ' ', a2, ' ', a3 );
     LeaveCriticalSection(cs);
 end;
 
 procedure TLogger.warn( a1: variant; a2: variant; a3: variant; a4: variant );
 begin
+    if ( not warnEnabled ) then exit;
     EnterCriticalSection(cs);
-    writeln( 'WARN', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4 );
+    writeln( 'WRN', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4 );
     LeaveCriticalSection(cs);
 end;
 
 procedure TLogger.warn( a1: variant; a2: variant; a3: variant; a4: variant; a5: variant );
 begin
+    if ( not warnEnabled ) then exit;
     EnterCriticalSection(cs);
-    writeln( 'WARN', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5 );
+    writeln( 'WRN', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5 );
     LeaveCriticalSection(cs);
 end;
 
 procedure TLogger.warn( a1: variant; a2: variant; a3: variant; a4: variant; a5: variant; a6: variant );
 begin
+    if ( not warnEnabled ) then exit;
     EnterCriticalSection(cs);
-    writeln( 'WARN', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6 );
+    writeln( 'WRN', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6 );
     LeaveCriticalSection(cs);
 end;
 
 procedure TLogger.warn( a1: variant; a2: variant; a3: variant; a4: variant; a5: variant; a6: variant; a7: variant );
 begin
+    if ( not warnEnabled ) then exit;
     EnterCriticalSection(cs);
-    writeln( 'WARN', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7 );
+    writeln( 'WRN', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7 );
     LeaveCriticalSection(cs);
 end;
 
 procedure TLogger.warn( a1: variant; a2: variant; a3: variant; a4: variant; a5: variant; a6: variant; a7: variant; a8: variant );
 begin
+    if ( not warnEnabled ) then exit;
     EnterCriticalSection(cs);
-    writeln( 'WARN', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8 );
+    writeln( 'WRN', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8 );
     LeaveCriticalSection(cs);
 end;
 
 procedure TLogger.warn( a1: variant; a2: variant; a3: variant; a4: variant; a5: variant; a6: variant; a7: variant; a8: variant; a9: variant );
 begin
+    if ( not warnEnabled ) then exit;
     EnterCriticalSection(cs);
-    writeln( 'WARN', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9 );
+    writeln( 'WRN', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9 );
     LeaveCriticalSection(cs);
 end;
 
 procedure TLogger.warn( a1: variant; a2: variant; a3: variant; a4: variant; a5: variant; a6: variant; a7: variant; a8: variant; a9: variant; a10: variant );
 begin
+    if ( not warnEnabled ) then exit;
     EnterCriticalSection(cs);
-    writeln( 'WARN', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9, ' ', a10 );
+    writeln( 'WRN', ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9, ' ', a10 );
     LeaveCriticalSection(cs);
 end;
 
