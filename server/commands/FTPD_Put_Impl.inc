@@ -3,6 +3,7 @@
 
     constructor FTPD_PUT.Create( _Session: TSockFTPDSession; _Args: TJSON );
     begin
+        Name := 'PUT';
         inherited;
     end;
 

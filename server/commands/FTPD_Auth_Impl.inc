@@ -3,7 +3,17 @@
 
     constructor FTPD_AUTH.Create( _Session: TSockFTPDSession; _Args: TJSON );
     begin
+
+        Name := 'AUTH';
+
         inherited;
+        
+        // Straight at constructor, we check if the _Args is valid,
+        // IF it's authenticable via the ISockFTPManager, And send
+        // Back the data to the client.
+        
+        
+        
     end;
 
     procedure FTPD_AUTH.OnMessage( Data: AnsiString; Binary: Boolean );

@@ -1,6 +1,6 @@
 program sockftpd;
 
-uses {$ifdef unix}cthreads, {$endif}
+uses {$ifdef unix}cthreads, cmem, {$endif}
      Logger,
      Classes,
      IdBaseComponent,
