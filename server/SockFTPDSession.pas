@@ -42,25 +42,21 @@ end;
 
 procedure TSockFTPDSession.OnMessage( Data: AnsiString; Binary: Boolean );
 Begin
-    write('FTPD');
     inherited;
 End;
 
 procedure TSockFTPDSession.OnError( Reason: String );
 begin
-    write('FTPD');
     inherited;
 End;
 
 procedure TSockFTPDSession.OnConnect;
 begin
-    write('FTPD');
     inherited;
 end;
 
 Procedure TSockFTPDSession.OnDisconnect;
 begin
-    write('FTPD');
     inherited;
 end;
 

@@ -1,8 +1,8 @@
 {$mode objfpc}
 
-unit SockFTPManager;
+unit SockFTPDManager;
 
-interface uses IniFiles, sysutils;
+interface uses {$ifdef unix}cthreads, {$endif} IniFiles, sysutils, Logger;
 
 const PATH_SEPARATOR = {$ifdef WIN32}'\'{$else}'/'{$endif};
 
@@ -27,12 +27,12 @@ type
     
     TUserConfigList = Array of TUserConfig;
     
-    TSockFtpManagerException = class( Exception )
+    TSockFTPDManagerException = class( Exception )
         code: LongInt;
         constructor Create( exceptionCode: LongInt; msg: AnsiString );
     end;
     
-    TSockFtpManager = class
+    TSockFTPDManager = class
         
         private
             
@@ -77,12 +77,16 @@ type
             destructor Free();
     end;
 
-    { Instance to Server Manager }
-    var ISockFTPManager: TSockFtpManager;
+    
+    var { Flag telling us weather the config has been loaded successfully or not }
+        ISockFTPDManagerLoaded: Boolean;
+        
+        { Instance to Server Manager }
+        ISockFTPDManager: TSockFTPDManager;
 
 implementation uses classes, md5, dos, strutils;
 
-constructor TSockFtpManager.Create( iniFileName: AnsiString );
+constructor TSockFTPDManager.Create( iniFileName: AnsiString );
 
 var UsersList: TStringList;
     i: LongInt;
@@ -121,7 +125,7 @@ begin
             
             emsg := 'Failed to prepare the home directory of the user ' + users[i].UserName;
             UsersList.Destroy;
-            raise TSockFtpManagerException.Create( ERR_SM_FAILED_USER_PREPARATION, emsg );
+            raise TSockFTPDManagerException.Create( ERR_SM_FAILED_USER_PREPARATION, emsg );
             exit;
             
         end;
@@ -132,7 +136,7 @@ begin
     
 end;
 
-destructor TSockFtpManager.Free();
+destructor TSockFTPDManager.Free();
 begin
 
     ini.Destroy();
@@ -142,7 +146,7 @@ begin
 
 end;
 
-function TSockFtpManager.getUserQuota( userName: AnsiString ): longInt;
+function TSockFTPDManager.getUserQuota( userName: AnsiString ): longInt;
 var i: Integer;
 begin
 
@@ -160,7 +164,7 @@ begin
     end;
 end;
 
-function TSockFtpManager.userExists( userName: AnsiString ): Boolean;
+function TSockFTPDManager.userExists( userName: AnsiString ): Boolean;
 var i: Integer;
 begin
     
@@ -181,7 +185,7 @@ begin
     
 end;
 
-function TSockFtpManager.userLogin( userName: AnsiString; password: AnsiString ): Boolean;
+function TSockFTPDManager.userLogin( userName: AnsiString; password: AnsiString ): Boolean;
 var md5Password : AnsiString;
     i: integer;
 begin
@@ -210,49 +214,49 @@ begin
     
 end;
 
-function TSockFtpManager.getServerPort(): Word;
+function TSockFTPDManager.getServerPort(): Word;
 begin
     
     result := ini.ReadInteger( 'daemon', 'port', 8181 );
     
 end;
 
-function TSockFTPManager.getServerProtocolName(): AnsiString;
+function TSockFTPDManager.getServerProtocolName(): AnsiString;
 begin
 
     result := ini.ReadString( 'daemon', 'protocol', 'sockftp' );
 
 end;
 
-function TSockFtpManager.getServerName(): AnsiString;
+function TSockFTPDManager.getServerName(): AnsiString;
 begin
     
     result := ini.readString( 'daemon', 'name', 'WebSocket_Application' );
     
 end;
 
-function TSockFtpManager.getFileSystemRoot(): AnsiString;
+function TSockFTPDManager.getFileSystemRoot(): AnsiString;
 begin
     
     result := ini.readString( 'filesystem', 'root', '/srv/ftp' );
     
 end;
 
-function TSockFtpManager.getFileSystemDirFormat(): AnsiString;
+function TSockFTPDManager.getFileSystemDirFormat(): AnsiString;
 begin
     
     result := ini.readString( 'filesystem', 'dirformat', '%D%_%M%_%Y%' );
     
 end;
 
-function TSockFtpManager.getWebServerFileFormat(): AnsiString;
+function TSockFTPDManager.getWebServerFileFormat(): AnsiString;
 begin
     
     result := ini.readString( 'webserver', 'url', 'http://127.0.0.1/%USER%/%DIR%/%FILE%' );
     
 end;
 
-function TSockFtpManager.CreateUserDir( userName: AnsiString ): boolean;
+function TSockFTPDManager.CreateUserDir( userName: AnsiString ): boolean;
 var TargetDir: AnsiString;
     QuotaFile: AnsiString;
     F: Text;
@@ -340,7 +344,7 @@ begin
 
 end;
 
-function TSockFtpManager.getUserFreeSpace( userName: AnsiString ): LongInt;
+function TSockFTPDManager.getUserFreeSpace( userName: AnsiString ): LongInt;
 var i: Integer;
 begin
     result := 0;
@@ -354,7 +358,7 @@ begin
     end;
 end;
 
-function TSockFtpManager.allocateUserSpace( userName: AnsiString; HowMuch: LongInt ): boolean;
+function TSockFTPDManager.allocateUserSpace( userName: AnsiString; HowMuch: LongInt ): boolean;
 var i: Integer;
 begin
     
@@ -390,7 +394,7 @@ begin
     
 end;
 
-procedure TSockFtpManager.SetUserFreeSpace( userName: AnsiString; Space: LongInt; const Flush: Boolean = FALSE );
+procedure TSockFTPDManager.SetUserFreeSpace( userName: AnsiString; Space: LongInt; const Flush: Boolean = FALSE );
 var i: Integer;
     f: Text;
 begin
@@ -416,7 +420,7 @@ begin
                 if IOResult <> 0 then
                 begin
                     LeaveCriticalSection(CS);
-                    raise TSockFtpManagerException.Create( ERR_SM_FAILED_WRITE_QUOTA_FILE , 'Failed to open quota file for user ' + userName + ' for writing!' );
+                    raise TSockFTPDManagerException.Create( ERR_SM_FAILED_WRITE_QUOTA_FILE , 'Failed to open quota file for user ' + userName + ' for writing!' );
                 end else
                 begin
                     {$I-}
@@ -427,7 +431,7 @@ begin
                     if IOResult <> 0 then
                     begin
                         LeaveCriticalSection(CS);
-                        raise TSockFtpManagerException.Create( ERR_SM_FAILED_WRITE_QUOTA_FILE, 'Failed to write quota file for user ' + userName );
+                        raise TSockFTPDManagerException.Create( ERR_SM_FAILED_WRITE_QUOTA_FILE, 'Failed to write quota file for user ' + userName );
                     end else
                     begin
                         LeaveCriticalSection(CS);
@@ -443,7 +447,7 @@ begin
     
 end;
 
-function TSockFtpManager.PrepareString( s: AnsiString; const User: AnsiString = ''; const FileName: AnsiString = '' ) : AnsiString;
+function TSockFTPDManager.PrepareString( s: AnsiString; const User: AnsiString = ''; const FileName: AnsiString = '' ) : AnsiString;
 var y, m, d, dw: Word;
     _Y: AnsiString;
     _M: AnsiString;
@@ -514,7 +518,7 @@ begin
     
 end;
 
-constructor TSockFtpManagerException.Create( exceptionCode: LongInt; msg: AnsiString );
+constructor TSockFTPDManagerException.Create( exceptionCode: LongInt; msg: AnsiString );
 begin
     code := exceptionCode;
     inherited Create( msg );
@@ -522,10 +526,28 @@ end;
 
 initialization
 
-    ISockFTPManager := TSockFtpManager.Create( 'daemon.ini' );
+    ISockFTPDManagerLoaded := FALSE;
+
+    Console.log( 'Loading configuration file...' );
+
+    try
+
+        ISockFTPDManager := TSockFTPDManager.Create( 'daemon.ini' );
+        ISockFTPDManagerLoaded := TRUE;
+        
+    except
+        
+        On E: Exception Do
+        begin
+            ISockFTPDManagerLoaded := FALSE;
+            
+            Console.error( 'Error loading config:', E.Message );
+        end;
+        
+    end;
 
 finalization
 
-    ISockFTPManager.Free;
+    ISockFTPDManager.Free;
 
 end.

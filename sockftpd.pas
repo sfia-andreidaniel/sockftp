@@ -1,6 +1,7 @@
 program sockftpd;
 
 uses {$ifdef unix}cthreads, {$endif}
+     Logger,
      Classes,
      IdBaseComponent,
      IdCustomTCPServer,
@@ -8,22 +9,32 @@ uses {$ifdef unix}cthreads, {$endif}
      SysUtils,
      custApp,
      IdGlobal,
-     SockFTPDDaemon;
+     SockFTPDDaemon,
+     SockFTPDManager;
 
 var D: TSockFTPDDaemon;
 
 begin
 
-    D := TSockFTPDDaemon.Create( '127.0.0.1', 8181 );
-    
-    try
+    if not ISockFTPDManagerLoaded then
+    begin
+        Console.error( 'SockFTPD will now quit' );
+    end else
+    begin
 
-        D.Run;
+        D := TSockFTPDDaemon.Create( '0.0.0.0', 8181 );
     
-    finally
+        try
+
+            D.Run;
     
-        D.Free;
+        finally
     
+            D.Free;
+    
+        end;
+
     end;
+    
 
 end.

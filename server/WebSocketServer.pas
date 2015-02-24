@@ -8,7 +8,8 @@ interface uses
     IdContext,
     SysUtils,
     IdGlobal,
-    WebSocketSession;
+    WebSocketSession,
+    Logger;
     
 type
     
@@ -79,7 +80,7 @@ begin
         
             On E: Exception Do
             Begin
-                writeln( 'TWebSocketServer._OnExec: Session Exception: ', E.Message );
+                Console.Error( 'Unhandled (recoverable) session exception:', E.Message );
             End;
         
         end;

@@ -10,7 +10,8 @@ interface uses
     IdGlobal,
     StrUtils,
     HTTP,
-    WebSocketUtils;
+    WebSocketUtils,
+    Logger;
 
 var SessionID: LongInt;
 
@@ -114,25 +115,25 @@ implementation
 { OnMessage Event }
 procedure TWebSocketSession.OnMessage( Data: AnsiString; Binary: Boolean );
 begin
-    writeln( 'Session #', ID, ' message: "', Data, '" ( Binary = ', Binary, ' )' );
+    Console.Log( 'Session #', ID, ' message: "', Data, '" ( Binary = ', Binary, ' )' );
 end;
 
 { OnError Event }
 procedure TWebSocketSession.OnError( Reason: String );
 begin
-    writeln( 'Session #', ID, ' error: ', Reason );
+    Console.Error( 'Session #', ID, ' error: ', Reason );
 end;
 
 { After Handshake }
 procedure TWebSocketSession.OnConnect;
 begin
-    writeln( 'Session #', ID, ' connected' );
+    Console.Log( 'Session #', ID, ' connected' );
 end;
 
 { OnDisconnect }
 procedure TWebSocketSession.OnDisconnect;
 begin
-    writeln( 'Session #', ID, ' disconnected' );
+    Console.Log( 'Session #', ID, ' disconnected' );
 end;
 
 { Sends Data As Text }

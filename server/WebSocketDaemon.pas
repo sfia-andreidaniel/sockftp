@@ -7,7 +7,8 @@ interface uses
     contnrs,
     IdContext,
     WebSocketServer,
-    WebSocketSession;
+    WebSocketSession,
+    Logger;
     
 type
     
@@ -34,7 +35,7 @@ implementation uses IdGlobal, IdCustomTCPServer;
 constructor TWebSocketDaemon.Create( address: string; port: word );
 begin
     
-    writeln( 'Initializing server on ', address, ':', port, ' ...' );
+    Console.log( 'Initializing server on ', address, ':', port, ' ...' );
     
     S := TWebSocketServer.Create;
     
@@ -58,13 +59,13 @@ end;
 procedure TWebSocketDaemon.Run;
 begin
 
-    write( 'Starting: ' );
+    Console.log( 'Starting' );
 
     try
 
         S.Active := TRUE;
     
-        writeln( 'OK. Entering main loop.' );
+        Console.log( 'OK. Entering main loop.' );
     
         while S.Active do
         begin
@@ -77,13 +78,13 @@ begin
         
         On E:Exception Do Begin
             
-            writeln( 'The server encountered a general exception: ', E.Message );
+            Console.error( 'The server encountered a general exception: ', E.Message );
             
         End;
 
     end;
     
-    writeln( 'Server stopped' );
+    Console.log( 'Server stopped' );
 
 end;
 
