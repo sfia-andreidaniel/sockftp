@@ -3,12 +3,3 @@ enum ConnectionState {
 	OPENED,
 	ERROR
 }
-
-enum ConnectionMode {
-	UNAVAILABLE,
-	IDLE,
-	PUT,
-	AUTH,
-	GET,
-	DELETE
-}
