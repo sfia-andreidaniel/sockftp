@@ -525,7 +525,7 @@ begin
         close(F);
         {$I+}
         
-        writeln( 'Read quota: ', quotaVal );
+        //writeln( 'Read quota: ', quotaVal );
         
     
         if ( IOResult <> 0 ) then
@@ -959,8 +959,6 @@ var LC: AnsiString;
     MUL: Int64;
     rem: Integer;
 begin
-    
-    writeln( 'size2int: ', s );
     
     LC := Trim( LowerCase( S ) );
     
