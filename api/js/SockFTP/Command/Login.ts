@@ -22,11 +22,34 @@ class SockFTP_Command_Login extends SockFTP_Command {
 	}
 
 	public init() {
-		console.log( 'Sending login information...' );
+
+		super.init();
+		
+		this.client.log( 'Sending login information...' );
+		
 		this.sendText({
 			"user": this.userName,
 			"password": this.password
 		});
+	}
+
+	public onMessage( msg: any ) {
+
+		super.onMessage( msg );
+
+		if ( msg && msg.ok ) {
+
+			this.succeed();
+
+		} else
+		if ( msg && msg.error ) {
+
+			this.fail( msg.error );
+		
+		} else {
+			this.fail( "E_BAD_MESSAGE" );
+		}
+
 	}
 
 }

@@ -22,8 +22,7 @@ class SockFTP_Command extends Events {
 	}
 
 	public init() {
-		this.fail( 'The init method should be implemented on derived classes!' );
-		throw "WARNING: RUNNING VIRTUAL INIT METHOD";
+		this.isRunning = true;
 	}
 
 	// the done method can be called ONLY ONCE!
@@ -64,6 +63,8 @@ class SockFTP_Command extends Events {
 
 		try {
 
+			console.log( 'SendBuffer: ', data['length'] );
+
 			this.client.send( data );
 
 		} catch ( E ) {
@@ -84,7 +85,7 @@ class SockFTP_Command extends Events {
 
 			} catch ( E ) {
 
-				console.warn( 'COMMAND: ' + this.name + ': Exception during succeed(): ' + E );
+				this.client.error( 'COMMAND: ' + this.name + ': Exception during succeed(): ' + E );
 
 			}
 
@@ -93,6 +94,7 @@ class SockFTP_Command extends Events {
 		}
 
 		this.callbacksTriggered = true;
+		this.isRunning = false;
 
 	}
 
@@ -106,7 +108,7 @@ class SockFTP_Command extends Events {
 
 			} catch (E) {
 
-				console.warn( 'COMMAND: ' + this.name + ': Exception during fail(): ' + E );
+				this.client.error( 'COMMAND: ' + this.name + ': Exception during fail(): ' + E );
 
 			}
 
@@ -115,7 +117,20 @@ class SockFTP_Command extends Events {
 		}
 
 		this.callbacksTriggered = true;
+		this.isRunning = false;
 
+	}
+
+	public onMessage( msg: any ) {
+
+		if ( this.callbacksTriggered ) {
+			throw "E_MSG_TOO_LATE";
+		}
+
+	}
+
+	// this should be implemented on ancestors.
+	public ondrain() {
 	}
 
 	public kill() {

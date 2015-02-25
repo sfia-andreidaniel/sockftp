@@ -2,7 +2,6 @@ var ConnectionState;
 (function (ConnectionState) {
     ConnectionState[ConnectionState["CLOSED"] = 0] = "CLOSED";
     ConnectionState[ConnectionState["OPENED"] = 1] = "OPENED";
-    ConnectionState[ConnectionState["ERROR"] = 2] = "ERROR";
 })(ConnectionState || (ConnectionState = {}));
 var Events = (function () {
     function Events() {
@@ -104,6 +103,9 @@ var SockFTP = (function (_super) {
                     chunk = me.outQueue.shift();
                     try {
                         me.socket.send(chunk);
+                        if (me.outQueue.length == 0 && me.socket.bufferedAmount == 0) {
+                            me.ondrain();
+                        }
                     }
                     catch (E) {
                         me.state = 0 /* CLOSED */;
@@ -123,7 +125,7 @@ var SockFTP = (function (_super) {
      */
     SockFTP.prototype.send = function (data) {
         if (this.state == 1 /* OPENED */) {
-            if (!this.outQueue.length && this.socket.bufferedAmount == 0) {
+            if (this.outQueue.length == 0 && this.socket.bufferedAmount == 0) {
                 this.socket.send(data);
             }
             else {
@@ -166,12 +168,17 @@ var SockFTP = (function (_super) {
             on = !!on;
             if (on != this.packetScheduler) {
                 if (on) {
-                    this.packetSchedulerThreadId = window.setInterval(this.packetSchedulerThread, 30);
-                    console.log('packet scheduler became active');
+                    (function (me) {
+                        me.packetSchedulerThreadId = window.setInterval(function () {
+                            me.packetSchedulerThread();
+                        }, 30);
+                    })(this);
+                    this.log('packet scheduler became active');
                 }
                 else {
                     window.clearInterval(this.packetSchedulerThreadId);
                     this.packetSchedulerThreadId = null;
+                    this.log('packet scheduler became inactive');
                 }
             }
         },
@@ -183,10 +190,11 @@ var SockFTP = (function (_super) {
             if (this.outQueue.length == 0 && this.socket.bufferedAmount == 0) {
                 this.checkDrain = false;
                 this.packetScheduler = false;
-                console.log('packet scheduler became inactive.');
+                this.ondrain();
             }
             else if (this.outQueue.length && this.socket.bufferedAmount == 0) {
                 this.fire('drain');
+                console.log('fd');
             }
         }
     };
@@ -199,29 +207,75 @@ var SockFTP = (function (_super) {
             args[_i - 0] = arguments[_i];
         }
         args.unshift('log');
-        args.unshift('log');
-        this.fire.apply(this, args);
+        this.fire('log', args);
     };
     SockFTP.prototype.error = function () {
         var args = [];
         for (var _i = 0; _i < arguments.length; _i++) {
             args[_i - 0] = arguments[_i];
         }
-        args.unshift('log');
         args.unshift('error');
-        this.fire.apply(this, args);
+        this.fire('log', args);
     };
     SockFTP.prototype.warn = function () {
         var args = [];
         for (var _i = 0; _i < arguments.length; _i++) {
             args[_i - 0] = arguments[_i];
         }
-        args.unshift('log');
         args.unshift('warn');
-        this.fire.apply(this, args);
+        this.fire('log', args);
     };
     SockFTP.prototype.dispatch = function (evt) {
-        console.warn(evt);
+        var data, i, len;
+        if (evt) {
+            switch (evt.type) {
+                case 'message':
+                    try {
+                        data = JSON.parse(evt['data']);
+                    }
+                    catch (e) {
+                        data = null;
+                    }
+                    if (data == null) {
+                        // Failed to parse packet from server!
+                        this.socket.close();
+                        return;
+                    }
+                    if (data.id) {
+                        for (i = 0, len = this.cmdQueue.length; i < len; i++) {
+                            if (this.cmdQueue[i].commandID == data.id) {
+                                this.cmdQueue[i].onMessage(data);
+                                break;
+                            }
+                        }
+                    }
+                    else {
+                        if (this.cmdQueue[0]) {
+                            this.cmdQueue[0].onMessage(data);
+                        }
+                    }
+                    break;
+                default:
+                    // binary message? from server? nope!
+                    this.socket.close();
+                    this.warn('Warning: Got binary message from server. Not implemented at this point');
+                    break;
+            }
+        }
+    };
+    SockFTP.prototype.put = function (f, success, error, progress) {
+        if (success === void 0) { success = null; }
+        if (error === void 0) { error = null; }
+        if (progress === void 0) { progress = null; }
+        (function (me) {
+            me.addCommand(new SockFTP_Command_Put(me, f, success || function () {
+                me.log('PUT "' + f.name + '": OK.');
+            }, error || function (reason) {
+                me.error('PUT "' + f.name + '": ERROR: ' + (reason || 'Unknown upload error'));
+            }, progress || function (percent, name) {
+                me.log('PUT "' + f.name + '": ' + percent + '%');
+            }));
+        })(this);
     };
     // binds the uploader to a FileInput element, so that
     // any time the file changes, the file is uploaded to the server
@@ -229,7 +283,9 @@ var SockFTP = (function (_super) {
         this.log('binding to: ', input);
         (function (me) {
             input.addEventListener('change', function (evt) {
-                me.warn('input changed: ', evt);
+                for (var i = 0, len = input.files.length; i < len; i++) {
+                    me.put(input.files[i]);
+                }
             }, false);
         })(this);
     };
@@ -237,6 +293,17 @@ var SockFTP = (function (_super) {
         this.userName = user || 'anonymous';
         this.password = password || '';
         this.addCommand(new SockFTP_Command_Login(this, this.userName, this.password, success, error), true);
+    };
+    // called each time we don't have data in the send buffer
+    SockFTP.prototype.ondrain = function () {
+        // forward the drain event to the current running command if any.
+        // this is to ensure a smooth sending, but without interruptions in the main app thread
+        var i, len;
+        for (i = 0, len = this.cmdQueue.length; i < len; i++) {
+            if (this.cmdQueue[i].isRunning) {
+                this.cmdQueue[i].ondrain();
+            }
+        }
     };
     SockFTP.prototype.onstatechanged = function () {
         if (this.lastState == this.state)
@@ -248,14 +315,18 @@ var SockFTP = (function (_super) {
             (function (me) {
                 me.login(me.userName, me.password, function () {
                     me.authenticated = true;
+                    me.log('Authentication OK');
                 }, function (reason) {
                     me.state = 0 /* CLOSED */;
-                    me.fire('error', 'Authentication failed: ' + (reason || 'unknown reason'));
+                    me.error('Authentication FAILED: ' + (reason || 'Unknown reason'));
                     me.onstatechanged();
                 });
             })(this);
+            this.warn("Client[" + this.host + ":" + this.port + "] -> UP");
         }
         else {
+            // When the client GETS DOWN ONLY:
+            this.packetScheduler = false;
             for (var i = 0, len = this.cmdQueue.length; i < len; i++) {
                 // send the kill signal
                 this.cmdQueue[i].kill();
@@ -265,10 +336,10 @@ var SockFTP = (function (_super) {
             }
             // close the socket if not closed
             if (this.socket.readyState == 0 || this.socket.readyState == 1) {
-                console.warn('Closing socket');
+                this.warn('Closing socket');
                 this.socket.close();
             }
-            console.log("Client -> DOWN");
+            this.warn("Client[" + this.host + ":" + this.port + "] -> DOWN");
         }
     };
     return SockFTP;
@@ -288,8 +359,7 @@ var SockFTP_Command = (function (_super) {
         this.name = 'virtual';
     }
     SockFTP_Command.prototype.init = function () {
-        this.fail('The init method should be implemented on derived classes!');
-        throw "WARNING: RUNNING VIRTUAL INIT METHOD";
+        this.isRunning = true;
     };
     // the done method can be called ONLY ONCE!
     SockFTP_Command.prototype.done = function (withError) {
@@ -315,6 +385,7 @@ var SockFTP_Command = (function (_super) {
     };
     SockFTP_Command.prototype.sendBuffer = function (data) {
         try {
+            console.log('SendBuffer: ', data['length']);
             this.client.send(data);
         }
         catch (E) {
@@ -327,11 +398,12 @@ var SockFTP_Command = (function (_super) {
                 this.onSuccess();
             }
             catch (E) {
-                console.warn('COMMAND: ' + this.name + ': Exception during succeed(): ' + E);
+                this.client.error('COMMAND: ' + this.name + ': Exception during succeed(): ' + E);
             }
             this.done(false);
         }
         this.callbacksTriggered = true;
+        this.isRunning = false;
     };
     SockFTP_Command.prototype.fail = function (why) {
         if (!this.callbacksTriggered) {
@@ -339,11 +411,20 @@ var SockFTP_Command = (function (_super) {
                 this.onError(why || 'Unknown error');
             }
             catch (E) {
-                console.warn('COMMAND: ' + this.name + ': Exception during fail(): ' + E);
+                this.client.error('COMMAND: ' + this.name + ': Exception during fail(): ' + E);
             }
             this.done(true);
         }
         this.callbacksTriggered = true;
+        this.isRunning = false;
+    };
+    SockFTP_Command.prototype.onMessage = function (msg) {
+        if (this.callbacksTriggered) {
+            throw "E_MSG_TOO_LATE";
+        }
+    };
+    // this should be implemented on ancestors.
+    SockFTP_Command.prototype.ondrain = function () {
     };
     SockFTP_Command.prototype.kill = function () {
         if (this.killTriggered)
@@ -366,16 +447,96 @@ var SockFTP_Command_Login = (function (_super) {
         this.password = password;
     }
     SockFTP_Command_Login.prototype.init = function () {
-        console.log('Sending login information...');
+        _super.prototype.init.call(this);
+        this.client.log('Sending login information...');
         this.sendText({
             "user": this.userName,
             "password": this.password
         });
     };
+    SockFTP_Command_Login.prototype.onMessage = function (msg) {
+        _super.prototype.onMessage.call(this, msg);
+        if (msg && msg.ok) {
+            this.succeed();
+        }
+        else if (msg && msg.error) {
+            this.fail(msg.error);
+        }
+        else {
+            this.fail("E_BAD_MESSAGE");
+        }
+    };
     return SockFTP_Command_Login;
+})(SockFTP_Command);
+var SockFTP_Command_Put = (function (_super) {
+    __extends(SockFTP_Command_Put, _super);
+    function SockFTP_Command_Put(client, file, success, error, progress) {
+        _super.call(this, client);
+        this.file = null;
+        this.sent = 0;
+        this.read = 0;
+        this.length = 0;
+        this.type = '';
+        this.fname = '';
+        this.locked = false;
+        this.percent = 0;
+        this.packetSize = 32000;
+        this.progress = null;
+        this.onSuccess = success;
+        this.onError = error;
+        this.name = 'put';
+        this.file = file;
+        this.sent = 0;
+        this.length = this.file.size;
+        this.type = this.file.type || 'application/octet-stream';
+        this.fname = this.file.name;
+        this.progress = progress || null;
+    }
+    SockFTP_Command_Put.prototype.init = function () {
+        _super.prototype.init.call(this);
+        this.client.log('PUT: ' + this.fname + ', length: ' + this.length + ', type: ' + this.type);
+        this.sendText({
+            "name": this.fname,
+            "length": this.length,
+            "type": this.type
+        });
+    };
+    SockFTP_Command_Put.prototype.ondrain = function () {
+        // send more bytes to server.
+        this.client.log('PUTNEXT');
+        if (this.locked) {
+            return;
+        }
+        this.locked = true;
+        if (this.sent < this.length) {
+            (function (me) {
+                var reader = new FileReader();
+                reader.onloadend = function (evt) {
+                    if (evt.target.readyState == FileReader['DONE']) {
+                        console.log('Send: ', evt);
+                        me.sendBuffer(evt.currentTarget.result);
+                        me.sent += evt.total;
+                        // Update progress.
+                        var progress = ~~(me.sent / (me.length / 100));
+                        if (progress != me.percent) {
+                            me.percent = progress;
+                            if (me.progress) {
+                                me.progress(me.percent, me.fname);
+                            }
+                        }
+                        me.locked = false;
+                    }
+                };
+                var blob = me.file.slice(me.sent, me.read = Math.min(me.sent + me.packetSize, me.length));
+                reader.readAsArrayBuffer(blob);
+            })(this);
+        }
+    };
+    return SockFTP_Command_Put;
 })(SockFTP_Command);
 ///<reference path="types.ts" />
 ///<reference path="Events.ts" />
 ///<reference path="SockFTP.ts" />
 ///<reference path="./SockFTP/Command.ts" />
-///<reference path="./SockFTP/Command/Login.ts" /> 
+///<reference path="./SockFTP/Command/Login.ts" />
+///<reference path="./SockFTP/Command/Put.ts" /> 

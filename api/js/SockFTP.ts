@@ -93,6 +93,12 @@ class SockFTP extends Events {
 					try {
 					
 						me.socket.send( chunk );
+
+
+						if ( me.outQueue.length == 0 && me.socket.bufferedAmount == 0 ) {
+							me.ondrain();
+						}
+
 					
 					} catch (E) {
 						me.state = ConnectionState.CLOSED;
@@ -121,8 +127,8 @@ class SockFTP extends Events {
 	public send( data: any ) {
 		if ( this.state == ConnectionState.OPENED ) {
 
-			if ( !this.outQueue.length && this.socket.bufferedAmount == 0 ) {
-				this.socket.send( data )
+			if ( this.outQueue.length == 0 && this.socket.bufferedAmount == 0 ) {
+				this.socket.send( data );
 			} else {
 				this.outQueue.push( data );
 			}
@@ -177,25 +183,38 @@ class SockFTP extends Events {
 		on = !!on;
 		if ( on != this.packetScheduler ) {
 			if ( on ) {
-				this.packetSchedulerThreadId = window.setInterval( this.packetSchedulerThread, 30 );
-				console.log( 'packet scheduler became active' );
+				
+				( function( me ) {
+					
+					me.packetSchedulerThreadId = window.setInterval( function() {
+						me.packetSchedulerThread()
+					}, 30 );
+				
+				} )( this );
+
+				this.log( 'packet scheduler became active' );
 			} else {
 				window.clearInterval( this.packetSchedulerThreadId );
 				this.packetSchedulerThreadId = null;
+				this.log( 'packet scheduler became inactive' );
 			}
 		}
 	}
 
 	private packetSchedulerThread() {
+
 		if ( this.checkDrain && this.state == ConnectionState.OPENED ) {
 
 			if ( this.outQueue.length == 0 && this.socket.bufferedAmount == 0 ) {
+				
 				this.checkDrain = false;
 				this.packetScheduler = false;
-				console.log( 'packet scheduler became inactive.' );
+				this.ondrain();
+
 			} else
 			if ( this.outQueue.length && this.socket.bufferedAmount == 0 ) {
 				this.fire( 'drain' );
+				console.log( 'fd' );
 			}
 		}
 	}
@@ -207,32 +226,121 @@ class SockFTP extends Events {
 	public log( ...args: any[] ) {
 
 		args.unshift( 'log' );
-		args.unshift( 'log' );
 
-		this.fire.apply( this, args );
+		this.fire( 'log', args );
 
 	}
 
 	public error( ...args: any[] ) {
 
-		args.unshift( 'log' );
 		args.unshift( 'error' );
 
-		this.fire.apply( this, args );
+		this.fire( 'log', args );
 
 	}
 
 	public warn( ...args: any[] ) {
 
-		args.unshift( 'log' );
 		args.unshift( 'warn' );
 
-		this.fire.apply( this, args );
+		this.fire( 'log', args );
 
 	}
 
 	public dispatch( evt: Event ) {
-		console.warn( evt );
+		
+		var data: any,
+		    i: number,
+		    len: number;
+
+		if ( evt ) {
+
+			switch ( evt.type ) {
+
+				case 'message':
+
+					try {
+
+						data = JSON.parse( evt['data'] );
+
+					} catch( e ) {
+
+						data = null;
+
+					}
+
+					if ( data == null ) {
+
+						// Failed to parse packet from server!
+						this.socket.close();
+						return;
+
+					}
+
+					if ( data.id ) {
+						
+						// route the packet to the command with id data.id
+
+						for ( i=0, len = this.cmdQueue.length; i<len; i++ ) {
+							if ( this.cmdQueue[i].commandID == data.id ) {
+								this.cmdQueue[i].onMessage( data );
+								break;
+							}
+						}
+
+						// command is not found, ignore packet
+
+					} else {
+
+						if ( this.cmdQueue[0] ) {
+							this.cmdQueue[0].onMessage( data );
+						}
+
+					}
+
+					break;
+
+				default:
+					// binary message? from server? nope!
+
+					this.socket.close();
+					this.warn( 'Warning: Got binary message from server. Not implemented at this point' );
+
+					break;
+
+			}
+
+		}
+
+	}
+
+	public put( 
+		f 		 : File, 
+		success	 : () => void = null, 
+		error	 : ( reason: string ) => void = null, 
+		progress : ( percent: number, name: string ) => void = null 
+	) {
+
+		( function( me ) {
+
+			me.addCommand( 
+				new SockFTP_Command_Put( 
+					me, 
+					f, 
+					success || function() {
+						me.log( 'PUT "' + f.name + '": OK.' );
+					},
+					error || function( reason: string ) {
+						me.error( 'PUT "' + f.name + '": ERROR: ' + ( reason || 'Unknown upload error' ) );
+					}, 
+					progress || function( percent: number, name: string ) {
+						me.log( 'PUT "' + f.name + '": ' + percent + '%' );
+					}
+				)
+			);	
+
+		})( this );
+
 	}
 
 	// binds the uploader to a FileInput element, so that
@@ -245,7 +353,9 @@ class SockFTP extends Events {
 
 			input.addEventListener( 'change', function( evt ) {
 
-				me.warn( 'input changed: ', evt );
+				for ( var i=0, len = input.files.length; i<len; i++ ) {
+					me.put( input.files[i] );
+				}
 
 			}, false );
 
@@ -259,6 +369,23 @@ class SockFTP extends Events {
 		this.password = password || '';
 
 		this.addCommand( new SockFTP_Command_Login( this, this.userName, this.password, success, error ), true );
+
+	}
+
+	// called each time we don't have data in the send buffer
+	public ondrain() {
+		
+		// forward the drain event to the current running command if any.
+		// this is to ensure a smooth sending, but without interruptions in the main app thread
+
+		var i: number,
+		    len: number;
+
+		for ( i = 0, len = this.cmdQueue.length; i<len; i++ ) {
+			if ( this.cmdQueue[i].isRunning ) {
+				this.cmdQueue[i].ondrain();
+			}
+		}
 
 	}
 
@@ -279,12 +406,14 @@ class SockFTP extends Events {
 				me.login( me.userName, me.password, function() {
 
 					me.authenticated = true;
+
+					me.log( 'Authentication OK');
 				
 				}, function( reason: string ) {
 
 					me.state = ConnectionState.CLOSED;
 					
-					me.fire( 'error', 'Authentication failed: ' + ( reason || 'unknown reason' ) );
+					me.error( 'Authentication FAILED: ' + ( reason || 'Unknown reason' ) );
 
 					me.onstatechanged();
 
@@ -292,9 +421,13 @@ class SockFTP extends Events {
 
 			} )( this );
 
+			this.warn( "Client[" + this.host + ":" + this.port + "] -> UP" )
+
 		} else {
 
-			// When the client GETS DOWN ONLY:
+				// When the client GETS DOWN ONLY:
+
+				this.packetScheduler = false;
 
 				// kill all active commands
 				for ( var i=0, len = this.cmdQueue.length; i<len; i++ ) {
@@ -309,11 +442,11 @@ class SockFTP extends Events {
 			// close the socket if not closed
 
 			if ( this.socket.readyState == 0 || this.socket.readyState == 1 ) {
-				console.warn( 'Closing socket' );
+				this.warn( 'Closing socket' );
 				this.socket.close();
 			}
 
-			console.log( "Client -> DOWN" );
+			this.warn( "Client[" + this.host + ":" + this.port + "] -> DOWN" )
 		}
 
 	}

@@ -30,6 +30,23 @@ type
         
     End;
     
+    TFileStruct   = Record
+        
+        local  : AnsiString;   // local file name on disk
+        remote : AnsiString;   // network file path
+        name   : AnsiString;   // file name
+        size   : LongInt;      // file size in bytes
+        user   : AnsiString;
+        
+    End;
+    
+    TFileNameStruct = Record
+        
+        name: AnsiString;
+        ext : AnsiString;
+        
+    end;
+    
     TUserConfigList = Array of TUserConfig;
     
     TSockFTPDManagerException = class( Exception )
@@ -44,6 +61,7 @@ type
             ini: TIniFile;
 
             CS: TRTLCriticalSection;
+            CanCS: Boolean;
             
             users: TUserConfigList;
             numUsers: LongInt;
@@ -60,31 +78,70 @@ type
             function getOriginsList(): TStrArray;
             function getLoggingLevel: AnsiString;
         
+        private
+            
+            procedure IN_CS();
+            procedure OUT_CS();
+        
         public
         
             constructor Create( iniFileName: AnsiString );
         
-            property ServerPort: Word read getServerPort;
-            property ServerName: AnsiString read getServerName;
-            property ServerListenInterface: AnsiString read getServerListenInterface;
-            property ServerProtocolName: AnsiString read getServerProtocolName;
+            { INI BINDINGS }
             
+            { [daemon].port }
+            property ServerPort: Word read getServerPort;
+            { [daemon].name }
+            property ServerName: AnsiString read getServerName;
+            { [daemon].interface }
+            property ServerListenInterface: AnsiString read getServerListenInterface;
+            { [daemon].protocol }
+            property ServerProtocolName: AnsiString read getServerProtocolName;
+            { [filesystem].root }
             property FileSystemRoot: AnsiString read getFileSystemRoot;
+            { [filesystem].dirformat }
             property FileSystemDirFormat: AnsiString read getFileSystemDirFormat;
+            { [webserver].url }
             property WebServerFileFormat: AnsiString read getWebServerFileFormat;
+            { [origins].* }
             property AllowedOriginsList: TStrArray read getOriginsList;
+            { [daemon].loglevel }
             property LoggingLevel: AnsiString read getLoggingLevel;
             
+            { API METHODS }
+            
+            { Returns allocated user quota }
             function  getUserQuota( userName: AnsiString ): LongInt;
+            
+            { sets free space for user }
             procedure setUserFreeSpace( userName: AnsiString; Space: LongInt; const Flush: Boolean = false );
+            
+            { returns free space for user }
             function  getUserFreeSpace( userName: AnsiString ): LongInt;
+            
+            { reserves HowMuch bytes in a user space }
             function  allocateUserSpace( userName: AnsiString; HowMuch: LongInt ): Boolean;
             
+            { Check if user + pass is good }
             function  userLogin( userName: AnsiString; password: AnsiString ): boolean;
+            
+            { TRUE if userName exists }
             function  userExists( userName: AnsiString ): boolean;
             
+            { Ensures the user home folder is created }
             function  createUserDir( userName: AnsiString ): boolean;
+            
+            { Replace %D%, %M%, etc. from a config string }
             function  prepareString( s: AnsiString; const User: AnsiString = ''; const FileName: AnsiString = '' ): AnsiString;
+            
+            { Creates a file for a user with Size 0, and Allocates Size bytes in user quota }
+            function  CreateFile( FileName: String; User: String; Size: LongInt ): TFileStruct;
+            
+            { Deletes the file of a user. Quota is updated automatically }
+            procedure DeleteFile( F: TFileStruct );
+            
+            { Returns the "safe" name and extension of a file }
+            function  SanitizeFileName( Name: AnsiString ): TFileNameStruct;
             
             destructor Free();
     end;
@@ -98,13 +155,30 @@ type
 
 implementation uses classes, md5, dos, strutils;
 
+procedure TSockFTPDManager.IN_CS();
+begin
+    if ( CanCS ) then
+        EnterCriticalSection( CS );
+end;
+
+procedure TSockFTPDManager.OUT_CS();
+begin
+    
+    if ( CanCS ) then
+        LeaveCriticalSection( CS );
+    
+end;
+
 constructor TSockFTPDManager.Create( iniFileName: AnsiString );
 
 var UsersList: TStringList;
     i: LongInt;
     emsg: AnsiString;
+    n: LongInt;
     
 begin
+
+    CanCS := TRUE;
     
     InitCriticalSection( CS );
     
@@ -119,28 +193,38 @@ begin
     
     ini.ReadSectionValues( 'users', UsersList );
     
-    numUsers := UsersList.Count;
+    n := UsersList.Count;
+
+    NumUsers := 0;
     
-    SetLength( users, numUsers );
-    
-    for i := 0 to numUsers - 1 do
+    for i := 0 to n - 1 do
     begin
         
-        //writeln( UsersList.Names[ i ] + ' => ' + UsersList.ValueFromIndex[ i ] );
-        
-        users[ i ].UserName := UsersList.Names[i];
-        users[ i ].Password := UsersList.ValueFromIndex[i];
-        users[ i ].Quota    := Ini.ReadInteger( 'quotas', users[i].userName, 0 );
-        users[ i ].Ready    := CreateUserDir( users[i].UserName );
-        
-        if not users[ i ].Ready then
+        if ( ini.readString( 'users', UsersList.Names[i], '' ) <> '' ) then
         begin
+        
+            NumUsers := NumUsers + 1;
+
+            SetLength( users, NumUsers );
+            //writeln( UsersList.Names[ i ] + ' => ' + UsersList.ValueFromIndex[ i ] );
+        
+            users[ i ].UserName := UsersList.Names[i];
+            users[ i ].Password := UsersList.ValueFromIndex[i];
+            users[ i ].Quota    := Ini.ReadInteger( 'quotas', users[i].userName, 0 );
+            users[ i ].Ready    := CreateUserDir( users[i].UserName );
+        
+            if not users[ i ].Ready then
+            begin
             
-            emsg := 'Failed to prepare the home directory of the user ' + users[i].UserName;
-            UsersList.Destroy;
-            raise TSockFTPDManagerException.Create( ERR_SM_FAILED_USER_PREPARATION, emsg );
-            exit;
+                emsg := 'Failed to prepare the home directory of the user ' + users[i].UserName;
+                UsersList.Destroy;
+                raise TSockFTPDManagerException.Create( ERR_SM_FAILED_USER_PREPARATION, emsg );
+                exit;
             
+            end;
+        
+            Console.Log( 'Quota for ' + Users[i].UserName + ': Total =', Users[ i ].Quota , ', Free =', Users[ i ].FreeSpace );
+        
         end;
         
     end;
@@ -153,11 +237,11 @@ begin
     
     ini.ReadSectionValues( 'origins', UsersList );
     
-    numUsers := UsersList.Count;
+    n := UsersList.Count;
     
     setLength( _Origins, 0 );
     
-    for i := 0 to numUsers - 1 do
+    for i := 0 to n - 1 do
     begin
         
         if ( UsersList.ValueFromIndex[i] <> '' ) then
@@ -340,7 +424,7 @@ begin
     QuotaFile  := TargetDir + PATH_SEPARATOR + '.quota';
     QuotaVal   := GetUserQuota( userName );
     
-    EnterCriticalSection( CS );
+    IN_CS;
 
     if not DirectoryExists( FileSystemRoot + PATH_SEPARATOR + userName ) then
     begin
@@ -350,7 +434,7 @@ begin
         
         if ( IOresult <> 0 ) then
         begin
-            LeaveCriticalSection( CS );
+            OUT_CS;
             exit;
         end;
     end;
@@ -365,7 +449,7 @@ begin
         
         if ( IOResult <> 0 ) then
         begin
-            LeaveCriticalSection(CS);
+            OUT_CS;
             exit;
         end;
         
@@ -376,7 +460,7 @@ begin
         
         if ( IOResult <> 0 ) then
         begin
-            LeaveCriticalSection( CS );
+            OUT_CS;
             exit;
         end;
         
@@ -391,7 +475,7 @@ begin
         
         if ( IOResult <> 0 ) then
         begin
-            LeaveCriticalSection( CS );
+            OUT_CS;
             exit;
         end;
         
@@ -400,16 +484,19 @@ begin
         close(F);
         {$I+}
         
+        writeln( 'Read quota: ', quotaVal );
+        
+    
         if ( IOResult <> 0 ) then
         begin
-            LeaveCriticalSection(CS);
+            OUT_CS;
             exit;
         end;
     end;
     
-    LeaveCriticalSection(CS);
+    OUT_CS;
     
-    SetUserFreeSpace( userName, quotaVal );
+    SetUserFreeSpace( userName, getUserQuota( userName ) - quotaVal );
     
     result := true;
 
@@ -447,6 +534,10 @@ begin
                 begin
                 
                     setUserFreeSpace( userName, users[i].FreeSpace - HowMuch, TRUE ); // flush quota
+                    
+                    result := TRUE;
+                    
+                    exit;
                 
                 end else
                 begin
@@ -481,7 +572,7 @@ begin
             if Flush then
             begin
                 
-                EnterCriticalSection(CS);
+                IN_CS;
                 
                 {$I-}
                 assign( F, FileSystemRoot + PATH_SEPARATOR + userName + PATH_SEPARATOR + '.quota' );
@@ -490,22 +581,22 @@ begin
                 
                 if IOResult <> 0 then
                 begin
-                    LeaveCriticalSection(CS);
+                    OUT_CS;
                     raise TSockFTPDManagerException.Create( ERR_SM_FAILED_WRITE_QUOTA_FILE , 'Failed to open quota file for user ' + userName + ' for writing!' );
                 end else
                 begin
                     {$I-}
-                    write( F, Space );
+                    write( F, users[i].Quota - Space );
                     close( F );
                     {$I+}
                     
                     if IOResult <> 0 then
                     begin
-                        LeaveCriticalSection(CS);
+                        OUT_CS;
                         raise TSockFTPDManagerException.Create( ERR_SM_FAILED_WRITE_QUOTA_FILE, 'Failed to write quota file for user ' + userName );
                     end else
                     begin
-                        LeaveCriticalSection(CS);
+                        OUT_CS;
                     end;
                     
                 end;
@@ -584,6 +675,235 @@ begin
         
         if s[i] = PATH_SEPARATOR then
             result := copy(s, 1, i-1);
+        
+    end;
+    
+end;
+
+function TSockFTPDManager.SanitizeFileName( Name: AnsiString ): TFileNameStruct;
+var i: LongInt;
+    n: LongInt;
+    dot: Boolean;
+
+    extPart: AnsiString;
+    namePart: AnsiString;
+    
+    O: TFileNameStruct;
+
+begin
+    
+    dot := FALSE;
+
+    extPart := '';
+    namePart := '';
+    
+    n := Length( Name );
+    
+    for i := 1 to n do
+    begin
+        
+        if ( Name[i] = '.' ) then
+            dot := True
+        else begin
+            
+            case Name[i] of
+                
+                'a'..'z':
+                begin
+                    if dot then ExtPart := ExtPart + Name[i] else NamePart := NamePart + Name[i];
+                end;
+                '0'..'9':
+                begin
+                    if dot then ExtPart := ExtPart + Name[i] else NamePart := NamePart + Name[i];
+                end;
+                'A'..'Z':
+                begin
+                    if dot then ExtPart := ExtPart + Name[i] else NamePart := NamePart + Name[i];
+                end else
+                Begin
+                    
+                    if ( Name[i] = ' ' ) or ( Name[i] = '-' ) or ( Name[i] = '_' ) then
+                    begin
+                        if dot then ExtPart := ExtPart + Name[i] else NamePart := NamePart + Name[i];
+                    end;
+                End
+            End; // case
+            
+        end;
+        
+    end;
+    
+    if ( NamePart = '' ) then NamePart := 'file';
+    if ( ExtPart = '' ) then ExtPart := 'bin';
+    
+    o.name := NamePart;
+    o.ext  := ExtPart;
+    
+    result := o;
+    
+end;
+
+function TSockFTPDManager.CreateFile( FileName: String; User: String; Size: LongInt ): TFileStruct;
+var o: TFileStruct;
+    f: TFileNameStruct;
+    i: LongInt;
+    DFile: AnsiString;
+    f1: File;
+begin
+    
+    CanCS := FALSE;
+    
+    EnterCriticalSection( CS );
+    
+    try
+        
+        If User = '' then
+            raise Exception.Create( 'E_NOT_LOGGED_IN' );
+    
+        // check if user ok
+        If not UserExists( User ) then
+            raise Exception.Create( 'E_USER_NOT_FOUND' );
+    
+        // allocate quota
+        if ( Size > 0 ) then
+        begin
+
+            If not AllocateUserSpace( User, Size ) then
+                raise Exception.Create( 'E_QUOTA_EXCEEDED' );
+
+        end;
+    
+        o.size  := Size;
+        f       := SanitizeFileName( FileName );
+
+        // determine destination dir
+        o.local := FileSystemRoot + PATH_SEPARATOR + 
+                 User + PATH_SEPARATOR + 
+                 PrepareString( FileSystemDirFormat, User );
+    
+        o.user  := User;
+    
+        // create directory
+        if not ForceDirectories( o.local ) then
+            raise Exception.Create( 'E_DIR_CREATE_FAILED, ' + o.local );
+    
+        i := 0;
+    
+    
+        DFile := '';
+    
+        // create unique file name on filesystem
+    
+        repeat
+        
+            if ( i = 0 ) then
+            begin
+            
+                if not FileExists( o.local + PATH_SEPARATOR + f.name + '.' + f.ext ) then
+                begin
+                
+                    DFile := f.name + '.' + f.ext;
+                
+                end;
+            
+            end else
+            begin
+        
+                if not FileExists( o.local + PATH_SEPARATOR + f.name + '-' + IntToStr(i) + '.' + f.ext ) then
+                begin
+                
+                    DFile := f.name + '-' + IntToStr( i ) + '.' + f.ext;
+                
+                end;
+        
+            end;
+        
+            i := i + 1;
+    
+            if i > 10000 then
+            begin
+            
+                raise Exception.Create( 'E_FILE_EXISTS' );
+            
+            end;
+        
+        until DFile <> '';
+            
+        o.local  := o.local + PATH_SEPARATOR + DFile;
+        o.name   := DFile;
+        o.remote := PrepareString( WebServerFileFormat, User, DFile  );
+    
+        // create file on disk.
+        
+        {$I-}
+        assign( F1, o.local );
+        rewrite(F1);
+        {$I+}
+    
+        if IOResult <> 0 then
+        begin
+            
+            raise Exception.Create( 'Failed to create file on disk: "' + o.local + '"' );
+            
+        end else
+        begin
+            {$I-}
+            close( F1 );
+            {$I+}
+            
+            if ( IOResult <> 0 ) then
+            begin
+                
+                raise Exception.Create( 'Failed to close file on dosk: ' + o.local + '"' );
+                
+            end;
+            
+        end;
+    
+        result := o;
+    
+    finally
+        
+        CanCS := TRUE;
+        
+        LeaveCriticalSection( CS );
+    
+    end;
+    
+end;
+
+procedure TSockFTPDManager.DeleteFile( F: TFileStruct );
+begin
+
+    if F.Local <> '' then
+        Console.Warn( 'DELETE ' + F.Local );
+    
+    CanCS := FALSE;
+    
+    enterCriticalSection( CS );
+    
+    try
+    
+        if ( F.Size > 0 ) then
+        begin
+            
+            AllocateUserSpace( F.User, -F.Size );
+            
+        end;
+        
+        if FileExists( F.Local ) then
+        begin
+            
+            sysutils.DeleteFile( F.Local );
+            
+        end;
+        
+    
+    finally
+        
+        CanCS := TRUE;
+        
+        LeaveCriticalSection( CS );
         
     end;
     

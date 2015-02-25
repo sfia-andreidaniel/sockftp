@@ -11,7 +11,8 @@ interface uses
     WebSocketUtils,
     WebSocketSession,
     JSON,
-    Logger;
+    Logger,
+    SockFTPDManager;
 
 type
     
@@ -23,6 +24,8 @@ type
             CurrentCommand: TSockFTPDCommand;
 
         public
+
+            CurrentUser: AnsiString;
 
             { OnMessage Event }
             procedure OnMessage( Data: AnsiString; Binary: Boolean ); override;
@@ -99,9 +102,9 @@ Begin
         
     end;
 
-    
     // LOGIN
     // {"cmd":"login","data":{"user":"andrei","password":"12345"},"id":2}
+    // {"cmd":"put","data":{"name":"debug.log","length":242,"type":"application/octet-stream"},"id":3}
     
     if ( Binary ) then
     begin
@@ -223,6 +226,7 @@ procedure TSockFTPDSession.OnConnect;
 begin
     inherited;
     CurrentCommand := NIL;
+    CurrentUser := '';
 end;
 
 Procedure TSockFTPDSession.OnDisconnect;

@@ -11,31 +11,18 @@
             
             uploader = new SockFTP( '127.0.0.1', 8181, 'andrei', '12345' );
             
-            uploader.on( 'log', function( logType ) {
+            uploader.on( 'log', function( args ) {
                 
-                if ( arguments.length > 1 ) {
+                args = ( args || [] );
+
+                var logType = args[0] || 'log';
+
+                args = args.slice( 1 );
+
+                document.getElementById( 'console' ).value +=
+                    logType +': ' + args.join( ' ' ) + "\n";
                 
-                    switch ( arguments.length ) {
-                        
-                        case 2:
-                            window.console[ logType ]( arguments[1] );
-                            break;
-                        case 3:
-                            window.console[ logType ]( arguments[1], arguments[2] );
-                            break;
-                        case 4:
-                            window.console[ logType ]( arguments[1], arguments[2], arguments[3] );
-                            break;
-                        case 5:
-                            window.console[ logType ]( arguments[1], arguments[2], arguments[3], arguments[4] );
-                            break;
-                        default:
-                            window.console[ logType ]( Array.prototype.slice.call( arguments, 1 ) );
-                            break;
-                    }
-                }
-                
-            } );
+           } );
             
             uploader.bindTo( document.getElementById( 'uploader' ) );
             
@@ -49,5 +36,9 @@
         <input type="file" id="uploader" />
     </label>
     
+    <br />
+    <br />
+    <textarea id="console" disabled cols=80 rows=25></textarea>
+   
 </body>
 </html>

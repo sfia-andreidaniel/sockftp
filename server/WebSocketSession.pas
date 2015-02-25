@@ -147,12 +147,24 @@ end;
 
 { Sends Data As Text }
 procedure TWebSocketSession.SendText( S: AnsiString );
+var F: TWebSocket13Frame;
 begin
+    
+    F := TWebSocket13Frame.Create( FRAME_TYPE_TEXT, S );
+    BufferOut := BufferOut + F.encode();
+    F.Free;
+    
 end;
 
 { Sends Data as Binary }
 procedure TWebSocketSession.SendBinary( B: AnsiString );
+var F: TWebSocket13Frame;
 begin
+
+    F := TWebSocket13Frame.Create( FRAME_TYPE_BINARY, B );
+    BufferOut := BufferOut + F.encode();
+    F.Free;
+
 end;
 
 procedure TWebSocketSession.SendPong;
@@ -356,10 +368,13 @@ begin
         begin
             // we have data in the input buffer.
             
+            Writeln( 'BUFFERLEN: ', Length( BufferIn ) );
             Frame := TWebSocket13Frame_Decode( BufferIn );
             
             while Frame <> NIL do
             Begin
+                
+                writeln( 'MSGTYPE: ', Frame.frameType, ' MSGLEN: ', Frame.PayloadLength );
                 
                 case Frame.frameType Of
                     
@@ -407,6 +422,7 @@ begin
         
         if ( BufferOut <> '' ) and ( isActive and not disconnectedByClient and not disconnectedByServer ) then
         begin
+            // writeln( 'Send ' + IntToStr( Length( BufferOut ) ) );
             // we have data in the output buffer
             Flush;
         end;
