@@ -68,7 +68,7 @@ begin
     Args       := _Args;
     IsFinished := FALSE;
     
-    Console.Log( 'Create Command: ', Name );
+    // Console.Log( 'Create Command: ', Name );
     
 end;
 
@@ -76,7 +76,8 @@ destructor TSockFTPDCommand.Free;
 begin
     // Can't do nothing at this point.
     Args.Free;
-    Console.Log( 'Freeing command!' );
+    
+    // Console.Log( 'Freeing command!' );
 end;
 
 procedure TSockFTPDCommand.OnMessage( Data: AnsiString; Binary: Boolean );

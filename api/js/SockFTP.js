@@ -173,12 +173,10 @@ var SockFTP = (function (_super) {
                             me.packetSchedulerThread();
                         }, 30);
                     })(this);
-                    this.log('packet scheduler became active');
                 }
                 else {
                     window.clearInterval(this.packetSchedulerThreadId);
                     this.packetSchedulerThreadId = null;
-                    this.log('packet scheduler became inactive');
                 }
             }
         },
@@ -385,7 +383,6 @@ var SockFTP_Command = (function (_super) {
     };
     SockFTP_Command.prototype.sendBuffer = function (data) {
         try {
-            console.log('SendBuffer: ', data['length']);
             this.client.send(data);
         }
         catch (E) {
@@ -503,8 +500,7 @@ var SockFTP_Command_Put = (function (_super) {
     };
     SockFTP_Command_Put.prototype.ondrain = function () {
         // send more bytes to server.
-        this.client.log('PUTNEXT');
-        if (this.locked) {
+        if (this.locked || this.callbacksTriggered) {
             return;
         }
         this.locked = true;
@@ -512,10 +508,11 @@ var SockFTP_Command_Put = (function (_super) {
             (function (me) {
                 var reader = new FileReader();
                 reader.onloadend = function (evt) {
-                    if (evt.target.readyState == FileReader['DONE']) {
-                        console.log('Send: ', evt);
+                    if (evt.target.readyState == FileReader['DONE'] && !me.callbacksTriggered) {
                         me.sendBuffer(evt.currentTarget.result);
                         me.sent += evt.total;
+                        reader = null;
+                        blob = null;
                         // Update progress.
                         var progress = ~~(me.sent / (me.length / 100));
                         if (progress != me.percent) {
@@ -526,10 +523,25 @@ var SockFTP_Command_Put = (function (_super) {
                         }
                         me.locked = false;
                     }
+                    else if (me.callbacksTriggered) {
+                        me.locked = false;
+                    }
                 };
                 var blob = me.file.slice(me.sent, me.read = Math.min(me.sent + me.packetSize, me.length));
                 reader.readAsArrayBuffer(blob);
             })(this);
+        }
+    };
+    SockFTP_Command_Put.prototype.onMessage = function (msg) {
+        _super.prototype.onMessage.call(this, msg);
+        if (msg && msg.ok) {
+            this.succeed();
+        }
+        else if (msg && msg.error) {
+            this.fail(msg.error);
+        }
+        else {
+            this.fail("E_BAD_MESSAGE");
         }
     };
     return SockFTP_Command_Put;

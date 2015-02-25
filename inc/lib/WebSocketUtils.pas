@@ -5,7 +5,8 @@ unit WebSocketUtils;
 interface uses 
     {$ifdef unix}cthreads, {$endif}
     StrUtils,
-    StringsLib;
+    StringsLib,
+    Logger;
 
 function websocket_13_compute_key    ( RequestKey: AnsiString ): AnsiString;
 function websocket_13_protocol_valid ( OfferedProtocol: AnsiString; WantProtocol: AnsiString   ): Boolean;
@@ -380,7 +381,7 @@ begin
     // don't continue until we have a full frame.
     if ( BuffLen < frame.payloadLength ) then
     Begin
-	writeln( 'We did not continued until the frame is full (needed still ', frame.payloadLength - BuffLen, ' bytes), left membuffer to ', Length( MemBuffer ), ' assert: ', BuffLenSaved );
+        Console.Notice( 'PROTOCOL: We did not continued until the frame is full (needed still ', frame.payloadLength - BuffLen, ' bytes), left membuffer to ', Length( MemBuffer ), ' assert: ', BuffLenSaved );
         Frame.Free;
         result := nil;
         exit;

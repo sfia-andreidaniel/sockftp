@@ -368,13 +368,13 @@ begin
         begin
             // we have data in the input buffer.
             
-            Writeln( 'BUFFERLEN: ', Length( BufferIn ) );
+            //Writeln( 'BUFFERLEN: ', Length( BufferIn ) );
             Frame := TWebSocket13Frame_Decode( BufferIn );
             
             while Frame <> NIL do
             Begin
                 
-                writeln( 'MSGTYPE: ', Frame.frameType, ' MSGLEN: ', Frame.PayloadLength );
+                //writeln( 'MSGTYPE: ', Frame.frameType, ' MSGLEN: ', Frame.PayloadLength );
                 
                 case Frame.frameType Of
                     
@@ -474,7 +474,7 @@ var Buffer: TIdBytes;
 begin
 
     Ctx.Connection.IOHandler.CheckForDataOnSource( timeout );
-            
+        
     If not Ctx.Connection.IOHandler.InputBufferIsEmpty Then
     Begin
         

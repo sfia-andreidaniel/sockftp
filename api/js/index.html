@@ -21,6 +21,9 @@
 
                 document.getElementById( 'console' ).value +=
                     logType +': ' + args.join( ' ' ) + "\n";
+
+                if ( document.getElementById( 'console' ).scrollTop < 1000000 )
+                    document.getElementById( 'console' ).scrollTop = 10000000;
                 
            } );
             

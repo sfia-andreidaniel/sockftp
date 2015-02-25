@@ -8,12 +8,15 @@
             f          : File;
             fs         : TFileStruct;
             
-            BytesWrote : LongInt;
-            FileLength : LongInt;
+            BytesWrote : Int64;
+            FileLength : Int64;
+            CommandId  : Int64;
+            
             FileName   : AnsiString;
             FileType   : AnsiString;
-            CommandId  : LongInt;
+
             FAssigned  : Boolean;
+            FError     : AnsiString;
         
         public
         

@@ -63,8 +63,6 @@ class SockFTP_Command extends Events {
 
 		try {
 
-			console.log( 'SendBuffer: ', data['length'] );
-
 			this.client.send( data );
 
 		} catch ( E ) {

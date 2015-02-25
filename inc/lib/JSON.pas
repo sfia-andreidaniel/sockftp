@@ -16,7 +16,7 @@ type
             function isPrimitive(): Boolean;
             
             function getAsString( default: AnsiString ): AnsiString;
-            function getAsInt   ( default: LongInt    ): LongInt;
+            function getAsInt   ( default: Int64      ): Int64;
             function getAsFloat ( default: Double     ): Double;
             function getAsBoolean(default: Boolean    ): Boolean;
         
@@ -30,12 +30,12 @@ type
             function get( propertyName: AnsiString ): TJSON;
             function get( index: Longint ): TJSON;
             
-            function get( propertyName: AnsiString; Default: LongInt ): LongInt;
+            function get( propertyName: AnsiString; Default: Int64 ): Int64;
             function get( propertyName: AnsiString; Default: Double ): Double;
             function get( propertyName: AnsiString; Default: AnsiString): AnsiString;
             function get( propertyName: AnsiString; Default: Boolean): Boolean;
 
-            function get( index: LongInt; Default: LongInt ): LongInt;
+            function get( index: LongInt; Default: Int64 ): Int64;
             function get( index: LongInt; Default: Double ): Double;
             function get( index: LongInt; Default: AnsiString): AnsiString;
             function get( index: LongInt; Default: Boolean): Boolean;
@@ -45,6 +45,7 @@ type
     end;
     
     function json_decode( data: AnsiString ): TJSON;
+    function json_encode( data: AnsiString ): AnsiString;
 
 implementation
 
@@ -73,7 +74,7 @@ implementation
         end;
     end;
 
-    function TJSON.get( index: LongInt; Default: LongInt ): LongInt;
+    function TJSON.get( index: LongInt; Default: Int64 ): Int64;
     var TMP: TJSON;
     begin
         TMP := get( index );
@@ -122,7 +123,7 @@ implementation
         end;
     end;
 
-    function TJSON.get( propertyName: AnsiString; Default: LongInt ): LongInt;
+    function TJSON.get( propertyName: AnsiString; Default: Int64 ): Int64;
     var TMP: TJSON;
     begin
         TMP := get( propertyName );
@@ -328,7 +329,7 @@ implementation
         
     end;
 
-    function TJSON.getAsInt( default: LongInt ): LongInt;
+    function TJSON.getAsInt( default: Int64 ): Int64;
     begin
         if _data.jsontype = jtNumber then
         begin
@@ -389,5 +390,39 @@ implementation
         end;
         
     end;
-
+    
+    function json_encode( data: AnsiString ): AnsiString;
+    var i: Longint;
+        len: LongInt;
+    begin
+    
+        Len := Length( data );
+        
+        if Len = 0 then
+            result := '""'
+        else begin
+            
+            result := '"';
+            
+            for i := 1 to len do
+            begin
+                
+                case data[i] of
+                    #13: result := result + '\r';
+                    #10: result := result + '\n';
+                    #9 : result := result + '\t';
+                    '\': result := result + '\\';
+                    #0 : result := result + '\0'
+                    else
+                        result := result + data[i];
+                end;
+                
+            end;
+            
+            result := result + '"';
+            
+        end;
+    
+    end;
+    
 end.

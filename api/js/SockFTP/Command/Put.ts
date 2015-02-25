@@ -56,9 +56,8 @@ class SockFTP_Command_Put extends SockFTP_Command {
 
 	public ondrain() {
 		// send more bytes to server.
-		this.client.log( 'PUTNEXT')
 
-		if ( this.locked ) {
+		if ( this.locked || this.callbacksTriggered ) {
 			return;
 		}
 
@@ -73,13 +72,14 @@ class SockFTP_Command_Put extends SockFTP_Command {
 
 				reader.onloadend = function( evt: any ) {
 
-					if ( evt.target.readyState == FileReader['DONE'] ) {
-
-						console.log( 'Send: ', evt );
+					if ( evt.target.readyState == FileReader['DONE'] && !me.callbacksTriggered ) {
 
 						me.sendBuffer( evt.currentTarget.result );
 						
 						me.sent += evt.total;
+
+						reader = null;
+						blob = null;
 
 						// Update progress.
 						var progress = ~~( me.sent / ( me.length / 100 ) );
@@ -98,6 +98,9 @@ class SockFTP_Command_Put extends SockFTP_Command {
 
 						me.locked = false;
 
+					} else 
+					if ( me.callbacksTriggered ) {
+						me.locked = false;
 					}
 
 				};
@@ -110,7 +113,25 @@ class SockFTP_Command_Put extends SockFTP_Command {
 
 		}
 
+	}
 
+	public onMessage( msg: any ) {
+
+		super.onMessage( msg );
+
+		if ( msg && msg.ok ) {
+
+			this.succeed();
+
+		} else
+
+		if ( msg && msg.error ) {
+
+			this.fail( msg.error );
+		
+		} else {
+			this.fail( "E_BAD_MESSAGE" );
+		}
 
 	}
 

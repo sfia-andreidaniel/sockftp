@@ -6,12 +6,15 @@
             f  : File;
             fs : TFileStruct;
 
-            CommandId: LongInt;
+            CommandId  : Int64;
+            BytesWrote : Int64;
+            FileLength : Int64;
             
-            BytesWrote : LongInt;
-            FileLength : LongInt;
             FileName   : AnsiString;
             FileType   : AnsiString;
+            
+            FAssigned  : Boolean;
+            FError     : AnsiString;
     }
 
     constructor FTPD_PUT.Create( _Session: TSockFTPDSession; _Args: TJSON );
@@ -25,6 +28,8 @@
         FileName := '';
         FileType := '';
         CommandId := 0;
+        FAssigned := FALSE;
+        FError := '';
 
         FS.Local  := '';
         FS.Remote := '';
@@ -72,13 +77,13 @@
                 
                     {$i-}
                     Assign( F, FS.Local );
-                    Rewrite( F );
+                    Rewrite( F, 1 );
                     {$i+}
-                
-                    writeln( 'Assigned: ', Assigned( F ) );
                 
                     if ( IOResult <> 0 ) then
                         raise Exception.Create( 'Faield to open file on disk for writing!' );
+                
+                    FAssigned := TRUE;
                 
                 except
                     
@@ -112,10 +117,6 @@
             On E: Exception Do
             Begin
                 
-                FileName   := '';
-                FileLength := 0;
-                FileType   := '';
-                
                 If ( FS.name <> '' ) then begin
                     
                     ISockFTPDManager.DeleteFile( FS );
@@ -123,7 +124,10 @@
                 end;
                 
                 IsFinished := TRUE;
-                raise;
+                FError := E.Message;
+                
+                // No need to raise
+                // raise;
                 
             End;
         
@@ -134,65 +138,82 @@
     procedure FTPD_PUT.OnMessage( Data: AnsiString; Binary: Boolean );
     
     var len: LongInt;
-        bytes: TIdBytes;
-        l: LongInt;
-        i: LongInt;
+        BWrote: LongInt;
     
     begin
         
         inherited;
         
-        if not Binary then raise Exception.Create( 'Expected binary data!' );
+        try
         
-        len := Length( Data );
+            if not Binary then raise Exception.Create( 'Expected binary data!' );
         
-        if ( len + BytesWrote > FileLength ) then
-        begin
-            
-            raise Exception.Create( 'Filesize overflow error' );
-            
-        end else
-        begin
-            
-            SetLength( Bytes, Len );
-            
-            if ( len > 0 ) then
+            len := Length( Data );
+        
+            if ( len + BytesWrote > FileLength ) then
             begin
             
-                for i := 1 to len do begin
-                    bytes[ i - 1 ] := ord( Data[i] );
+                raise Exception.Create( 'Filesize overflow error' );
+            
+            end else
+            begin
+            
+                if ( len > 0 ) then
+                begin
+            
+                    {$I-}
+                    BlockWrite( F, Data[1], Len, BWrote );
+                    {$I+}
+                
+                    if ( IOResult <> 0 ) then
+                    begin
+                        raise Exception.Create( 'IO write' );
+                    end else
+                    if ( BWrote <> Len ) then
+                    begin
+                        raise Exception.Create( 'IO write size different than buffer length' );
+                    end;
+                
+                    BytesWrote := BytesWrote + Len;
+                
                 end;
-            
-                F.WriteBuffer( Bytes, Len );
-            
-                BytesWrote := BytesWrote + Len;
-            
+                
             end;
-            
-        end;
         
-        if BytesWrote = FileLength then
-        begin
+            if BytesWrote = FileLength then
+            begin
+                
+                IsFinished := TRUE;
+                
+            end;
+        
+        except
             
-            IsFinished := TRUE;
-            
-        end;
+            On E: Exception Do
+            Begin
+                
+                FError := E.Message;
+                IsFinished := TRUE;
+                
+            End;
+        
+        End;
         
     end;
 
     destructor  FTPD_PUT.Free;
     begin
         
-        If ( Assigned(F) ) then
+        If ( FAssigned ) then
         begin
             
             {$I-}
-            Close(F);
+            Close( F );
             {$I+}
             
         end;
         
-        if not IsFinished then
+        if not IsFinished or ( FError <> '' ) then
         begin
 
 
@@ -201,9 +222,9 @@
                 ISockFTPDManager.DeleteFile( FS );
             end;
             
-            Console.Error( 'Session #' + IntToStr( Session.ID ) + ' [' + Session.IP + '] PUT FAILED "' + FileName + '" ( Length =', FileLength, ')' );
+            Console.Error( 'Session #' + IntToStr( Session.ID ) + ' [' + Session.IP + '] PUT FAILED "' + FileName + '" ( Length =', FileLength, '): ' + FError );
                 
-            Session.SendText( '{"id": ' + IntToStr( CommandId ) + ', "error": "Failed!", "ok": false }' );
+            Session.SendText( '{"id": ' + IntToStr( CommandId ) + ', "error": ' + json_encode( FError ) + ', "ok": false }' );
             
         end else
         begin

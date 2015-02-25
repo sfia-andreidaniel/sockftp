@@ -192,11 +192,11 @@ class SockFTP extends Events {
 				
 				} )( this );
 
-				this.log( 'packet scheduler became active' );
+				// this.log( 'packet scheduler became active' );
 			} else {
 				window.clearInterval( this.packetSchedulerThreadId );
 				this.packetSchedulerThreadId = null;
-				this.log( 'packet scheduler became inactive' );
+				// this.log( 'packet scheduler became inactive' );
 			}
 		}
 	}

@@ -6,7 +6,7 @@ LINKING ?= -XX
 INCLUDES := -Fuinc/indy -Fuinc/lib -Fuserver
 
 build:: clean
-	fpc sockftpd.pas -vwehn -Mobjfpc $(OPTIMIZE) $(LINKING) $(INCLUDES)
+	fpc sockftpd.pas -vwen -Mobjfpc $(OPTIMIZE) $(LINKING) $(INCLUDES)
 	L=`cat sockftpd | wc -c`; echo; echo `expr $$L / 1024`Kb
 
 clean::

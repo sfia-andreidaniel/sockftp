@@ -14,6 +14,18 @@ const PATH_SEPARATOR = {$ifdef WIN32}'\'{$else}'/'{$endif};
 const ERR_SM_FAILED_USER_PREPARATION = 1; // Failed to prepare a user
       ERR_SM_FAILED_WRITE_QUOTA_FILE = 2; // Failed to open quota file for writing
 
+const SIZE_BYTES_KB = 1024;
+      SIZE_BYTES_MB = 1024 * SIZE_BYTES_KB;
+      SIZE_BYTES_GB = 1024 * SIZE_BYTES_MB;
+      SIZE_BYTES_TB = 1024 * SIZE_BYTES_GB;
+      SIZE_BYTES_PB = 1024 * SIZE_BYTES_TB;
+
+      SIZE_BYTES_K  = 1000;
+      SIZE_BYTES_M  = 1000 * SIZE_BYTES_K;
+      SIZE_BYTES_G  = 1000 * SIZE_BYTES_M;
+      SIZE_BYTES_T  = 1000 * SIZE_BYTES_G;
+      SIZE_BYTES_P  = 1000 * SIZE_BYTES_T;
+
 { Returns the application directory, without the trailing PATH SEPARATOR at the end. }
 function getApplicationDir(): AnsiString;
 
@@ -23,8 +35,8 @@ type
         
         UserName  : AnsiString;
         Password  : AnsiString; // password is in md5 format
-        Quota     : LongInt;    // quota of the user on disk
-        FreeSpace : LongInt;   // the free space of the user
+        Quota     : Int64;      // quota of the user on disk
+        FreeSpace : Int64;      // the free space of the user
         
         Ready     : Boolean;    // weather the home dir of the user was created successfully or not
         
@@ -35,7 +47,7 @@ type
         local  : AnsiString;   // local file name on disk
         remote : AnsiString;   // network file path
         name   : AnsiString;   // file name
-        size   : LongInt;      // file size in bytes
+        size   : Int64;        // file size in bytes
         user   : AnsiString;
         
     End;
@@ -77,6 +89,7 @@ type
             function getServerListenInterface(): AnsiString;
             function getOriginsList(): TStrArray;
             function getLoggingLevel: AnsiString;
+            function getLogFileName: AnsiString;
         
         private
             
@@ -107,20 +120,22 @@ type
             property AllowedOriginsList: TStrArray read getOriginsList;
             { [daemon].loglevel }
             property LoggingLevel: AnsiString read getLoggingLevel;
+            { [daemon].logfile }
+            property LogFileName: AnsiString read getLogFileName;
             
             { API METHODS }
             
             { Returns allocated user quota }
-            function  getUserQuota( userName: AnsiString ): LongInt;
+            function  getUserQuota( userName: AnsiString ): Int64;
             
             { sets free space for user }
-            procedure setUserFreeSpace( userName: AnsiString; Space: LongInt; const Flush: Boolean = false );
+            procedure setUserFreeSpace( userName: AnsiString; Space: Int64; const Flush: Boolean = false );
             
             { returns free space for user }
-            function  getUserFreeSpace( userName: AnsiString ): LongInt;
+            function  getUserFreeSpace( userName: AnsiString ): Int64;
             
             { reserves HowMuch bytes in a user space }
-            function  allocateUserSpace( userName: AnsiString; HowMuch: LongInt ): Boolean;
+            function  allocateUserSpace( userName: AnsiString; HowMuch: Int64 ): Boolean;
             
             { Check if user + pass is good }
             function  userLogin( userName: AnsiString; password: AnsiString ): boolean;
@@ -135,13 +150,19 @@ type
             function  prepareString( s: AnsiString; const User: AnsiString = ''; const FileName: AnsiString = '' ): AnsiString;
             
             { Creates a file for a user with Size 0, and Allocates Size bytes in user quota }
-            function  CreateFile( FileName: String; User: String; Size: LongInt ): TFileStruct;
+            function  CreateFile( FileName: String; User: String; Size: Int64 ): TFileStruct;
             
             { Deletes the file of a user. Quota is updated automatically }
             procedure DeleteFile( F: TFileStruct );
             
             { Returns the "safe" name and extension of a file }
             function  SanitizeFileName( Name: AnsiString ): TFileNameStruct;
+            
+            { Converts a Size String to a INT64 value }
+            function  SizeToInt64( S: AnsiString ): Int64;
+            
+            { Convers an Int64 value to a human readable size string }
+            function  Int64ToSize( S: Int64 ): AnsiString;
             
             destructor Free();
     end;
@@ -175,6 +196,7 @@ var UsersList: TStringList;
     i: LongInt;
     emsg: AnsiString;
     n: LongInt;
+    logPath: AnsiString;
     
 begin
 
@@ -183,6 +205,11 @@ begin
     InitCriticalSection( CS );
     
     ini := TIniFile.Create( getApplicationDir() + PATH_SEPARATOR + iniFileName );
+    
+    logPath := logFileName;
+    
+    if ( logPath <> 'console' )
+        then init_logger( logPath );
     
     setLength( Users, 0 );
     setLength( _origins, 0 );
@@ -210,7 +237,14 @@ begin
         
             users[ i ].UserName := UsersList.Names[i];
             users[ i ].Password := UsersList.ValueFromIndex[i];
-            users[ i ].Quota    := Ini.ReadInteger( 'quotas', users[i].userName, 0 );
+            users[ i ].Quota    := SizeToInt64( Ini.ReadString( 'quotas', users[i].userName, '0' ) );
+            
+            if ( users[i].Quota = -1 ) then
+            begin
+                Console.Error( 'Bad quota value for user: "' + Users[i].UserName + '": ', Ini.ReadString( 'quotas', users[i].userName, '0' ) );
+                raise Exception.Create( 'Failed to parse configuration file' );
+            end;
+            
             users[ i ].Ready    := CreateUserDir( users[i].UserName );
         
             if not users[ i ].Ready then
@@ -223,7 +257,7 @@ begin
             
             end;
         
-            Console.Log( 'Quota for ' + Users[i].UserName + ': Total =', Users[ i ].Quota , ', Free =', Users[ i ].FreeSpace );
+            Console.Log( 'Quota for user "' + Users[i].UserName + '" : Total = ' + Int64ToSize( Users[ i ].Quota ) + ', Free = ' + Int64ToSize( Users[ i ].FreeSpace ) );
         
         end;
         
@@ -284,7 +318,7 @@ begin
     
 end;
 
-function TSockFTPDManager.getUserQuota( userName: AnsiString ): longInt;
+function TSockFTPDManager.getUserQuota( userName: AnsiString ): Int64;
 var i: Integer;
 begin
 
@@ -397,6 +431,13 @@ begin
     
 end;
 
+function TSockFTPDManager.getLogFileName(): AnsiString;
+begin
+    
+    result := PrepareString( ini.readString( 'daemon', 'logfile', 'stdout' ) );
+    
+end;
+
 function TSockFTPDManager.getServerListenInterface(): AnsiString;
 begin
     
@@ -415,7 +456,7 @@ function TSockFTPDManager.CreateUserDir( userName: AnsiString ): boolean;
 var TargetDir: AnsiString;
     QuotaFile: AnsiString;
     F: Text;
-    QuotaVal : LongInt;
+    QuotaVal : Int64;
 begin
 
     result := false;
@@ -502,7 +543,7 @@ begin
 
 end;
 
-function TSockFTPDManager.getUserFreeSpace( userName: AnsiString ): LongInt;
+function TSockFTPDManager.getUserFreeSpace( userName: AnsiString ): Int64;
 var i: Integer;
 begin
     result := 0;
@@ -516,7 +557,7 @@ begin
     end;
 end;
 
-function TSockFTPDManager.allocateUserSpace( userName: AnsiString; HowMuch: LongInt ): boolean;
+function TSockFTPDManager.allocateUserSpace( userName: AnsiString; HowMuch: Int64 ): boolean;
 var i: Integer;
 begin
     
@@ -556,7 +597,7 @@ begin
     
 end;
 
-procedure TSockFTPDManager.SetUserFreeSpace( userName: AnsiString; Space: LongInt; const Flush: Boolean = FALSE );
+procedure TSockFTPDManager.SetUserFreeSpace( userName: AnsiString; Space: Int64; const Flush: Boolean = FALSE );
 var i: Integer;
     f: Text;
 begin
@@ -654,6 +695,9 @@ begin
     if posEx( '%DIR%', out ) <> 0 then
         out := StringReplace( out, '%DIR%', PrepareString( FileSystemDirFormat , User ), [ rfReplaceAll ] );
     
+    if posEx( '%APPDIR%', out ) <> 0 then
+        out := StringReplace( out, '%APPDIR%', getApplicationDir(), [ rfReplaceAll ] );
+    
     result := out;
     
 end;
@@ -743,7 +787,7 @@ begin
     
 end;
 
-function TSockFTPDManager.CreateFile( FileName: String; User: String; Size: LongInt ): TFileStruct;
+function TSockFTPDManager.CreateFile( FileName: String; User: String; Size: Int64 ): TFileStruct;
 var o: TFileStruct;
     f: TFileNameStruct;
     i: LongInt;
@@ -837,7 +881,7 @@ begin
         
         {$I-}
         assign( F1, o.local );
-        rewrite(F1);
+        rewrite(F1, 1);
         {$I+}
     
         if IOResult <> 0 then
@@ -905,6 +949,168 @@ begin
         
         LeaveCriticalSection( CS );
         
+    end;
+    
+end;
+
+function TSockFTPDManager.SizeToInt64( S: AnsiString ): Int64;
+var LC: AnsiString;
+     X: Extended;
+    MUL: Int64;
+    rem: Integer;
+begin
+    
+    writeln( 'size2int: ', s );
+    
+    LC := Trim( LowerCase( S ) );
+    
+    try
+    
+        if ( LC = '' ) then
+        begin
+            result := 0;
+        end else
+        if str_is_int( LC ) then
+        begin
+            result := strtoint64( LC );
+        end else
+        if str_is_float( LC ) then
+        begin
+            X := strtofloat( LC );
+            result := round( X );
+        end else
+        begin
+            
+            rem := 0;
+            
+            if ( str_ends_with( LC, 'kb' ) ) then
+            begin
+                Mul := SIZE_BYTES_KB;
+                rem := 2;
+            end else
+            if ( str_ends_with( LC, 'mb' ) ) then
+            begin
+                Mul := SIZE_BYTES_MB;
+                rem := 2;
+            end else
+            if ( str_ends_with( LC, 'gb' ) ) then
+            begin
+                Mul := SIZE_BYTES_GB;
+                rem := 2;
+            end else
+            if ( str_ends_with( LC, 'tb' ) ) then
+            begin
+                Mul := SIZE_BYTES_TB;
+                rem := 2;
+            end else
+            if ( str_ends_with( LC, 'pb' ) ) then
+            begin
+                Mul := SIZE_BYTES_PB;
+                rem := 2;
+            end else
+            if ( str_ends_with( LC, 'k' ) ) then
+            begin
+                Mul := SIZE_BYTES_K;
+                rem := 1;
+            end else
+            if ( str_ends_with( LC, 'm' ) ) then
+            begin
+                Mul := SIZE_BYTES_M;
+                rem := 1;
+            end else
+            if ( str_ends_with( LC, 'g' ) ) then
+            begin
+                Mul := SIZE_BYTES_G;
+                rem := 1;
+            end else
+            if ( str_ends_with( LC, 't' ) ) then
+            begin
+                Mul := SIZE_BYTES_T;
+                rem := 1;
+            end else
+            if ( str_ends_with( LC, 'p' ) ) then
+            begin
+                Mul := SIZE_BYTES_P;
+                rem := 1;
+            end else
+            begin
+                raise Exception.Create( 'Invalid number' );
+            end;
+            
+            delete( lc, Length( LC ) - rem + 1, rem );
+            
+            lc := trim( lc );
+            
+            if ( lc = '' ) then
+                raise Exception.Create( 'Empty size' );
+            
+            if not str_is_float( LC ) then
+                raise Exception.Create( 'Not a number' );
+            
+            X := StrToFloat( lc );
+            
+            result := round( X * MUL );
+            
+        end;
+    
+    except
+        
+        On E: Exception Do
+        Begin
+            
+            result := -1;
+            
+        End;
+    
+    End;
+    
+end;
+
+function TSockFTPDManager.Int64ToSize( S: Int64 ): AnsiString;
+var u: AnsiString;
+    mul: Int64;
+    X: Comp;
+begin
+    
+    u := '';
+    mul := 1;
+    
+    if ( S < SIZE_BYTES_KB ) then
+    begin
+        // straight to the point
+    end else
+    if ( S < SIZE_BYTES_MB ) then
+    begin
+        u := 'KB';
+        mul := SIZE_BYTES_KB;
+    end else
+    if ( S < SIZE_BYTES_GB ) then
+    begin
+        u := 'MB';
+        mul := SIZE_BYTES_MB;
+    end else
+    if ( S < SIZE_BYTES_TB ) then
+    begin
+        u := 'GB';
+        mul := SIZE_BYTES_GB;
+    end else
+    if ( S < SIZE_BYTES_PB ) then
+    begin
+        u := 'TB';
+        mul := SIZE_BYTES_TB;
+    end else
+    begin
+        u := 'PB';
+        mul := SIZE_BYTES_PB;
+    end;
+    
+    if ( mul = 1 ) then
+    begin
+        result := IntToStr( S );
+    end else
+    begin
+        X := S / mul;
+        result := FloatToStrF( x, ffGeneral, 2, 2 ) + ' ' + u;
     end;
     
 end;
