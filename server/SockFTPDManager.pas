@@ -101,7 +101,7 @@ type
         
         public
         
-            constructor Create( iniFileName: AnsiString );
+            constructor Create;
         
             { INI BINDINGS }
             
@@ -171,6 +171,9 @@ type
             { Convers an Int64 value to a human readable size string }
             function  Int64ToSize( S: Int64 ): AnsiString;
             
+            { Returns the initialization configuration file path }
+            function getIniFilePath(): AnsiString;
+            
             destructor Free();
     end;
 
@@ -197,7 +200,7 @@ begin
     
 end;
 
-constructor TSockFTPDManager.Create( iniFileName: AnsiString );
+constructor TSockFTPDManager.Create;
 
 var UsersList: TStringList;
     OriginsList: TStringList;
@@ -207,19 +210,24 @@ var UsersList: TStringList;
     logPath: AnsiString;
     ifnames: TStrArray;
     NumOrigins: LongInt;
+    IniFile: AnsiString;
     
 begin
 
     CanCS := TRUE;
     
-    InitCriticalSection( CS );
+    IniFile := getIniFilePath;
     
-    ini := TIniFile.Create( getApplicationDir() + PATH_SEPARATOR + iniFileName );
+    ini := TIniFile.Create( IniFile );
+    
+    InitCriticalSection( CS );
     
     logPath := logFileName;
     
     if ( logPath <> 'console' )
         then init_logger( logPath );
+    
+    Console.Notice( 'Config file loaded from "' + Console.Color( IniFile, FG_WARNING_COLOR ) + '"' );
     
     ifnames := FileSystemIllegalFileNames;
     
@@ -231,7 +239,7 @@ begin
         for i := 1 to n do
         begin
             
-            Console.log( 'Registered illegal file name: "' + ifnames[ i - 1 ] + '"' );
+            Console.log( 'Registered illegal file name: "' + Console.Color( ifnames[ i - 1 ], FG_WARNING_COLOR ) + '"' );
             
         end;
     
@@ -268,7 +276,7 @@ begin
             
             if ( users[ NumUsers - 1 ].Quota = -1 ) then
             begin
-                Console.Error( 'Bad quota value for user: "' + Users[ NumUsers - 1 ].UserName + '": ', Ini.ReadString( 'quotas', users[ NumUsers - 1 ].userName, '0' ) );
+                Console.Error( 'Bad quota value for user: "' + Console.Color( Users[ NumUsers - 1 ].UserName, FG_ERROR_COLOR ) + '": ', Ini.ReadString( 'quotas', users[ NumUsers - 1 ].userName, '0' ) );
                 raise Exception.Create( 'Failed to parse configuration file' );
             end;
             
@@ -284,7 +292,7 @@ begin
             
             end;
         
-            Console.Log( 'Quota for user "' + Users[ NumUsers - 1 ].UserName + '" : Total = ' + Int64ToSize( Users[ NumUsers - 1 ].Quota ) + ', Free = ' + Int64ToSize( Users[ NumUsers - 1 ].FreeSpace ) );
+            Console.Log( 'Quota for user "' + Console.Color( Users[ NumUsers - 1 ].UserName, FG_LOG_COLOR ) + '" : Total = ' + Int64ToSize( Users[ NumUsers - 1 ].Quota ) + ', Free = ' + Int64ToSize( Users[ NumUsers - 1 ].FreeSpace ) );
         
         end;
         
@@ -963,25 +971,33 @@ begin
     
         // create unique file name on filesystem
     
+        if ( f.name <> '' ) and ( f.ext = '' ) then
+        begin
+            // good
+        end else
+        begin
+            f.ext := '.' + f.ext;
+        end;
+    
         repeat
         
             if ( i = 0 ) then
             begin
             
-                if not FileExists( o.local + PATH_SEPARATOR + f.name + '.' + f.ext ) then
+                if not FileExists( o.local + PATH_SEPARATOR + f.name + f.ext ) then
                 begin
                 
-                    DFile := f.name + '.' + f.ext;
+                    DFile := f.name + f.ext;
                 
                 end;
             
             end else
             begin
         
-                if not FileExists( o.local + PATH_SEPARATOR + f.name + '-' + IntToStr(i) + '.' + f.ext ) then
+                if not FileExists( o.local + PATH_SEPARATOR + f.name + '-' + IntToStr(i) + f.ext ) then
                 begin
                 
-                    DFile := f.name + '-' + IntToStr( i ) + '.' + f.ext;
+                    DFile := f.name + '-' + IntToStr( i ) + f.ext;
                 
                 end;
         
@@ -1238,6 +1254,79 @@ begin
     
 end;
 
+function TSockFTPDManager.getIniFilePath(): AnsiString;
+var homedir: AnsiString;
+    udir   : AnsiString;
+begin
+    
+    // search of the config file is done in the following order
+    //
+    // 1) {APPDIR}/sockftpd.ini                                || windows | unix
+    // 2) {USERDIR}/.sockftpd.ini                              || windows | unix
+    // 3) /etc/sockftpd.ini                                    ||         | unix
+    
+    {$ifdef unix}
+        
+        udir := GetUserDir;
+
+        if ( not str_ends_with( udir, PATH_SEPARATOR ) ) then
+        begin
+            udir := udir + PATH_SEPARATOR;
+        end;
+
+        
+        if fileExists( getApplicationDir() + PATH_SEPARATOR + 'sockftpd.ini' ) then
+        begin
+            
+            result := getApplicationDir() + PATH_SEPARATOR + 'sockftpd.ini';
+            
+        end else
+        if fileExists( udir + 'sockftpd.ini' ) then
+        begin
+        
+            result := udir + 'sockftpd.ini';
+        
+        end else
+        if fileExists( '/etc/sockftpd.ini' ) then
+        begin
+        
+            result := '/etc/sockftpd.ini';
+        
+        end else
+        begin
+        
+            Console.Error( 'Failed to locate the application config file! Searched in "%AppDir%/sockftpd.ini", "%UserDir%/sockftpd.ini" and "/etc/sockftpd.ini".' );
+            
+            result := '';
+            
+            raise Exception.Create( 'Failed to locate the application config file! Searched in "%AppDir%/sockftpd.ini", "%UserDir%/sockftpd.ini" and "/etc/sockftpd.ini".' );
+            
+        end;
+        
+    {$else}
+    
+        // On Windows, we check @ this point only in the %APPDIR%/sockftpd.ini
+        
+        if fileExists( getApplicationDir() + PATH_SEPARATOR + 'sockftpd.ini' ) then
+        begin
+            
+            result := getApplicationDir() + PATH_SEPARATOR + 'sockftpd.ini';
+        
+        end else
+        begin
+        
+            Console.Error( 'Failed to locate the application config file! Searched in "%AppDir%/sockftpd.ini".' );
+            
+            result := '';
+            
+            raise Exception.Create( 'Failed to locate the application config file! Searched in "%AppDir%/sockftpd.ini".' );
+        
+        end;
+    
+    {$endif}
+
+end;
+
 constructor TSockFTPDManagerException.Create( exceptionCode: LongInt; msg: AnsiString );
 begin
     code := exceptionCode;
@@ -1252,7 +1341,7 @@ initialization
 
     try
 
-        ISockFTPDManager := TSockFTPDManager.Create( 'daemon.ini' );
+        ISockFTPDManager := TSockFTPDManager.Create;
         ISockFTPDManagerLoaded := TRUE;
         
     except
@@ -1268,6 +1357,7 @@ initialization
 
 finalization
 
-    ISockFTPDManager.Free;
+    if ISockFTPDManagerLoaded then
+        ISockFTPDManager.Free;
 
 end.

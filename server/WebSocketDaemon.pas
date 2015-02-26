@@ -51,7 +51,7 @@ begin
     
     for i := 1 to Length( _Origins ) do
     begin
-        Console.log( 'Allowing origin: ', _origins[ i - 1 ] );
+        Console.log( 'Allowing origin: ', Console.Color( _origins[ i - 1 ], FG_WARNING_COLOR ) );
     end;
     
     S := TWebSocketServer.Create;
@@ -82,7 +82,7 @@ begin
 
         S.Active := TRUE;
     
-        Console.log( 'OK. Entering main loop.' );
+        Console.log( 'OK. Entering ' + Console.Color( 'BIG', FG_WARNING_COLOR ) + ' loop.' );
     
         while S.Active do
         begin

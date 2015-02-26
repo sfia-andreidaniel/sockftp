@@ -22,6 +22,7 @@ begin
     end else
     begin
 
+
         // Setup logging level
         if ISockFTPDManager.LoggingLevel = '1' then
         Begin
