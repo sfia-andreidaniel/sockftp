@@ -56,6 +56,7 @@ type
         
         name: AnsiString;
         ext : AnsiString;
+        illegal: Boolean;
         
     end;
     
@@ -90,6 +91,8 @@ type
             function getOriginsList(): TStrArray;
             function getLoggingLevel: AnsiString;
             function getLogFileName: AnsiString;
+            function getIllegalFileNames: TStrArray;
+            function getAllowedFileNames: TStrArray;
         
         private
             
@@ -114,6 +117,10 @@ type
             property FileSystemRoot: AnsiString read getFileSystemRoot;
             { [filesystem].dirformat }
             property FileSystemDirFormat: AnsiString read getFileSystemDirFormat;
+            { [filesystem].illegalfilenames }
+            property FileSystemIllegalFileNames: TStrArray read getIllegalFileNames;
+            { [filesystem].allowedfilenames }
+            property FileSystemAllowedFileNames: TStrArray read getAllowedFileNames;
             { [webserver].url }
             property WebServerFileFormat: AnsiString read getWebServerFileFormat;
             { [origins].* }
@@ -193,10 +200,13 @@ end;
 constructor TSockFTPDManager.Create( iniFileName: AnsiString );
 
 var UsersList: TStringList;
+    OriginsList: TStringList;
     i: LongInt;
     emsg: AnsiString;
     n: LongInt;
     logPath: AnsiString;
+    ifnames: TStrArray;
+    NumOrigins: LongInt;
     
 begin
 
@@ -210,6 +220,23 @@ begin
     
     if ( logPath <> 'console' )
         then init_logger( logPath );
+    
+    ifnames := FileSystemIllegalFileNames;
+    
+    n := Length( ifnames );
+    
+    if ( n > 0 ) then
+    begin
+    
+        for i := 1 to n do
+        begin
+            
+            Console.log( 'Registered illegal file name: "' + ifnames[ i - 1 ] + '"' );
+            
+        end;
+    
+    end;
+    
     
     setLength( Users, 0 );
     setLength( _origins, 0 );
@@ -235,29 +262,29 @@ begin
             SetLength( users, NumUsers );
             //writeln( UsersList.Names[ i ] + ' => ' + UsersList.ValueFromIndex[ i ] );
         
-            users[ i ].UserName := UsersList.Names[i];
-            users[ i ].Password := UsersList.ValueFromIndex[i];
-            users[ i ].Quota    := SizeToInt64( Ini.ReadString( 'quotas', users[i].userName, '0' ) );
+            users[ NumUsers - 1 ].UserName := UsersList.Names[ i ];
+            users[ NumUsers - 1 ].Password := UsersList.ValueFromIndex[i];
+            users[ NumUsers - 1 ].Quota    := SizeToInt64( Ini.ReadString( 'quotas', users[ NumUsers - 1 ].userName, '0' ) );
             
-            if ( users[i].Quota = -1 ) then
+            if ( users[ NumUsers - 1 ].Quota = -1 ) then
             begin
-                Console.Error( 'Bad quota value for user: "' + Users[i].UserName + '": ', Ini.ReadString( 'quotas', users[i].userName, '0' ) );
+                Console.Error( 'Bad quota value for user: "' + Users[ NumUsers - 1 ].UserName + '": ', Ini.ReadString( 'quotas', users[ NumUsers - 1 ].userName, '0' ) );
                 raise Exception.Create( 'Failed to parse configuration file' );
             end;
             
-            users[ i ].Ready    := CreateUserDir( users[i].UserName );
+            users[ NumUsers - 1 ].Ready    := CreateUserDir( users[ NumUsers - 1 ].UserName );
         
-            if not users[ i ].Ready then
+            if not users[ NumUsers - 1 ].Ready then
             begin
             
-                emsg := 'Failed to prepare the home directory of the user ' + users[i].UserName;
+                emsg := 'Failed to prepare the home directory of the user ' + users[ NumUsers - 1 ].UserName;
                 UsersList.Destroy;
                 raise TSockFTPDManagerException.Create( ERR_SM_FAILED_USER_PREPARATION, emsg );
                 exit;
             
             end;
         
-            Console.Log( 'Quota for user "' + Users[i].UserName + '" : Total = ' + Int64ToSize( Users[ i ].Quota ) + ', Free = ' + Int64ToSize( Users[ i ].FreeSpace ) );
+            Console.Log( 'Quota for user "' + Users[ NumUsers - 1 ].UserName + '" : Total = ' + Int64ToSize( Users[ NumUsers - 1 ].Quota ) + ', Free = ' + Int64ToSize( Users[ NumUsers - 1 ].FreeSpace ) );
         
         end;
         
@@ -267,29 +294,33 @@ begin
     
     { Load the origins. Sorry for reusing the UsersList, numUsers here }
     
-    UsersList := TStringList.Create();
+    OriginsList := TStringList.Create();
     
-    ini.ReadSectionValues( 'origins', UsersList );
+    ini.ReadSectionValues( 'origins', OriginsList );
     
-    n := UsersList.Count;
+    n := OriginsList.Count;
     
     setLength( _Origins, 0 );
+    
+    NumOrigins := 0;
     
     for i := 0 to n - 1 do
     begin
         
-        if ( UsersList.ValueFromIndex[i] <> '' ) then
+        if ( ini.ReadString( 'origins', OriginsList.ValueFromIndex[ i ], '' ) <> '' ) then
         begin
         
-            setLength( _origins, Length( _origins ) + 1 );
+            NumOrigins := NumOrigins + 1;
+        
+            setLength( _origins, NumOrigins );
     
-            _origins[ i ] := UsersList.ValueFromIndex[i];
+            _origins[ NumOrigins - 1 ] := OriginsList.ValueFromIndex[i];
         
         end;
         
     end;
     
-    
+    OriginsList.Destroy;
     
     
 end;
@@ -315,6 +346,30 @@ begin
     end;
     
     result := _origins;
+    
+end;
+
+function TSockFTPDManager.getIllegalFileNames(): TStrArray;
+var i: integer;
+    l: integer;
+    s: ansistring;
+begin
+
+    s := ini.readString( 'filesystem', 'illegalfilenames', '' );
+    
+    result := str_split( s, [ ' ', ',' ] );
+    
+end;
+
+function TSockFTPDManager.getAllowedFileNames(): TStrArray;
+var i: integer;
+    l: integer;
+    s: ansistring;
+begin
+
+    s := ini.readString( 'filesystem', 'allowedfilenames', '' );
+    
+    result := str_split( s, [ ' ', ',' ] );
     
 end;
 
@@ -733,6 +788,11 @@ var i: LongInt;
     namePart: AnsiString;
     
     O: TFileNameStruct;
+    
+    FNam: AnsiString;
+    
+    Illegal: TStrArray;
+    Allowed: TStrArray;
 
 begin
     
@@ -777,11 +837,73 @@ begin
         
     end;
     
-    if ( NamePart = '' ) then NamePart := 'file';
-    if ( ExtPart = '' ) then ExtPart := 'bin';
+    if ( NamePart = '' ) and ( ExtPart = '' ) then
+        NamePart := 'file';
     
     o.name := NamePart;
     o.ext  := ExtPart;
+    o.illegal := FALSE;
+    
+    // Check if the file is illegal
+    if ( o.name = '' ) then
+    begin
+        FNam := '.' + o.ext;
+    end else
+    if ( o.ext = '' ) then
+    begin
+        FNam := o.name;
+    end else
+    begin
+        FNam := o.name + '.' + o.ext;
+    end;
+    
+    illegal := FileSystemIllegalFileNames;
+    
+    if Length( Illegal ) > 0 then
+    begin
+        
+    
+        for i := 1 to Length( Illegal ) do
+        begin
+            
+            if str_minimal_regex( FNam, Illegal[i - 1] ) then
+            begin
+                
+                o.illegal := TRUE;
+                break;
+                
+            end;
+            
+        end;
+        
+    end;
+    
+    if ( o.illegal = FALSE ) then
+    begin
+    
+        Allowed := FileSystemAllowedFileNames;
+    
+        if Length( Allowed ) > 0 then
+        begin
+            
+            o.illegal := TRUE;
+            
+            for i := 1 to Length( Allowed ) do
+            begin
+            
+                if str_minimal_regex( FNam, Allowed[ i - 1 ] ) then
+                begin
+                    
+                    o.illegal := FALSE;
+                    break;
+                    
+                end;
+            
+            end;
+        
+        end;
+    
+    end;
     
     result := o;
     
@@ -808,6 +930,9 @@ begin
         If not UserExists( User ) then
             raise Exception.Create( 'E_USER_NOT_FOUND' );
     
+        o.size  := Size;
+        f       := SanitizeFileName( FileName );
+
         // allocate quota
         if ( Size > 0 ) then
         begin
@@ -817,8 +942,8 @@ begin
 
         end;
     
-        o.size  := Size;
-        f       := SanitizeFileName( FileName );
+        if f.illegal = true then
+            raise Exception.Create( 'E_ILLEGAL_FILE_NAME' );
 
         // determine destination dir
         o.local := FileSystemRoot + PATH_SEPARATOR + 
@@ -829,7 +954,7 @@ begin
     
         // create directory
         if not ForceDirectories( o.local ) then
-            raise Exception.Create( 'E_DIR_CREATE_FAILED, ' + o.local );
+            raise Exception.Create( 'E_FILESYSTEM_ERROR, ' + o.local );
     
         i := 0;
     
@@ -887,7 +1012,7 @@ begin
         if IOResult <> 0 then
         begin
             
-            raise Exception.Create( 'Failed to create file on disk: "' + o.local + '"' );
+            raise Exception.Create( 'E_FILE_CREATE' );
             
         end else
         begin
@@ -898,7 +1023,7 @@ begin
             if ( IOResult <> 0 ) then
             begin
                 
-                raise Exception.Create( 'Failed to close file on dosk: ' + o.local + '"' );
+                raise Exception.Create( 'E_FILE_CLOSE' );
                 
             end;
             
@@ -1108,7 +1233,7 @@ begin
     end else
     begin
         X := S / mul;
-        result := FloatToStrF( x, ffGeneral, 2, 2 ) + ' ' + u;
+        result := FloatToStrF( x, ffGeneral, 3, 3 ) + ' ' + u;
     end;
     
 end;
