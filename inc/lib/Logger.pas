@@ -269,7 +269,7 @@ procedure TLogger.log( a1: variant );
 begin
     if ( not logEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'LOG    ', FG_LOG_COLOR ), ' ', Time, ': ', a1 );
+    _writeln( Color( 'LOG', FG_LOG_COLOR ), ' ', Time, ': ', a1 );
     LeaveCriticalSection(cs);
 end;
 
@@ -277,7 +277,7 @@ procedure TLogger.log( a1: variant; a2: variant );
 begin
     if ( not logEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'LOG    ', FG_LOG_COLOR ), ' ', Time, ': ', a1, ' ', a2 );
+    _writeln( Color( 'LOG', FG_LOG_COLOR ), ' ', Time, ': ', a1, ' ', a2 );
     LeaveCriticalSection(cs);
 end;
 
@@ -285,7 +285,7 @@ procedure TLogger.log( a1: variant; a2: variant; a3: variant );
 begin
     if ( not logEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'LOG    ', FG_LOG_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3 );
+    _writeln( Color( 'LOG', FG_LOG_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3 );
     LeaveCriticalSection(cs);
 end;
 
@@ -293,7 +293,7 @@ procedure TLogger.log( a1: variant; a2: variant; a3: variant; a4: variant );
 begin
     if ( not logEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'LOG    ', FG_LOG_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4 );
+    _writeln( Color( 'LOG', FG_LOG_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4 );
     LeaveCriticalSection(cs);
 end;
 
@@ -301,7 +301,7 @@ procedure TLogger.log( a1: variant; a2: variant; a3: variant; a4: variant; a5: v
 begin
     if ( not logEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'LOG    ', FG_LOG_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5 );
+    _writeln( Color( 'LOG', FG_LOG_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5 );
     LeaveCriticalSection(cs);
 end;
 
@@ -309,7 +309,7 @@ procedure TLogger.log( a1: variant; a2: variant; a3: variant; a4: variant; a5: v
 begin
     if ( not logEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'LOG    ', FG_LOG_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6 );
+    _writeln( Color( 'LOG', FG_LOG_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6 );
     LeaveCriticalSection(cs);
 end;
 
@@ -317,7 +317,7 @@ procedure TLogger.log( a1: variant; a2: variant; a3: variant; a4: variant; a5: v
 begin
     if ( not logEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'LOG    ', FG_LOG_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7 );
+    _writeln( Color( 'LOG', FG_LOG_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7 );
     LeaveCriticalSection(cs);
 end;
 
@@ -325,7 +325,7 @@ procedure TLogger.log( a1: variant; a2: variant; a3: variant; a4: variant; a5: v
 begin
     if ( not logEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'LOG    ', FG_LOG_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8 );
+    _writeln( Color( 'LOG', FG_LOG_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8 );
     LeaveCriticalSection(cs);
 end;
 
@@ -333,7 +333,7 @@ procedure TLogger.log( a1: variant; a2: variant; a3: variant; a4: variant; a5: v
 begin
     if ( not logEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'LOG    ', FG_LOG_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9 );
+    _writeln( Color( 'LOG', FG_LOG_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9 );
     LeaveCriticalSection(cs);
 end;
 
@@ -342,7 +342,7 @@ procedure TLogger.log( a1: variant; a2: variant; a3: variant; a4: variant; a5: v
 begin
     if ( not logEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'LOG    ', FG_LOG_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9, ' ', a10 );
+    _writeln( Color( 'LOG', FG_LOG_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9, ' ', a10 );
     LeaveCriticalSection(cs);
 end;
 
@@ -351,7 +351,7 @@ procedure TLogger.error( a1: variant );
 begin
     if ( not logEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'ERROR  ', FG_ERROR_COLOR ), ' ', Time, ': ', a1 );
+    _writeln( Color( 'ERR', FG_ERROR_COLOR ), ' ', Time, ': ', a1 );
     LeaveCriticalSection(cs);
 end;
 
@@ -359,7 +359,7 @@ procedure TLogger.error( a1: variant; a2: variant );
 begin
     if ( not errorEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'ERROR  ', FG_ERROR_COLOR ), ' ', Time, ': ', a1, ' ', a2 );
+    _writeln( Color( 'ERR', FG_ERROR_COLOR ), ' ', Time, ': ', a1, ' ', a2 );
     LeaveCriticalSection(cs);
 end;
 
@@ -367,7 +367,7 @@ procedure TLogger.error( a1: variant; a2: variant; a3: variant );
 begin
     if ( not errorEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'ERROR  ', FG_ERROR_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3 );
+    _writeln( Color( 'ERR', FG_ERROR_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3 );
     LeaveCriticalSection(cs);
 end;
 
@@ -375,7 +375,7 @@ procedure TLogger.error( a1: variant; a2: variant; a3: variant; a4: variant );
 begin
     if ( not errorEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'ERROR  ', FG_ERROR_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4 );
+    _writeln( Color( 'ERR', FG_ERROR_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4 );
     LeaveCriticalSection(cs);
 end;
 
@@ -383,7 +383,7 @@ procedure TLogger.error( a1: variant; a2: variant; a3: variant; a4: variant; a5:
 begin
     if ( not errorEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'ERROR  ', FG_ERROR_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5 );
+    _writeln( Color( 'ERR', FG_ERROR_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5 );
     LeaveCriticalSection(cs);
 end;
 
@@ -391,7 +391,7 @@ procedure TLogger.error( a1: variant; a2: variant; a3: variant; a4: variant; a5:
 begin
     if ( not errorEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'ERROR  ', FG_ERROR_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6 );
+    _writeln( Color( 'ERR', FG_ERROR_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6 );
     LeaveCriticalSection(cs);
 end;
 
@@ -399,7 +399,7 @@ procedure TLogger.error( a1: variant; a2: variant; a3: variant; a4: variant; a5:
 begin
     if ( not errorEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'ERROR  ', FG_ERROR_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7 );
+    _writeln( Color( 'ERR', FG_ERROR_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7 );
     LeaveCriticalSection(cs);
 end;
 
@@ -407,7 +407,7 @@ procedure TLogger.error( a1: variant; a2: variant; a3: variant; a4: variant; a5:
 begin
     if ( not errorEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'ERROR  ', FG_ERROR_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8 );
+    _writeln( Color( 'ERR', FG_ERROR_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8 );
     LeaveCriticalSection(cs);
 end;
 
@@ -415,7 +415,7 @@ procedure TLogger.error( a1: variant; a2: variant; a3: variant; a4: variant; a5:
 begin
     if ( not errorEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'ERROR  ', FG_ERROR_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9 );
+    _writeln( Color( 'ERR', FG_ERROR_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9 );
     LeaveCriticalSection(cs);
 end;
 
@@ -423,7 +423,7 @@ procedure TLogger.error( a1: variant; a2: variant; a3: variant; a4: variant; a5:
 begin
     if ( not errorEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'ERROR  ', FG_ERROR_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9, ' ', a10 );
+    _writeln( Color( 'ERR', FG_ERROR_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9, ' ', a10 );
     LeaveCriticalSection(cs);
 end;
 
@@ -432,7 +432,7 @@ procedure TLogger.warn( a1: variant );
 begin
     if ( not warnEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'WARNING', FG_WARNING_COLOR ), ' ', Time, ': ', a1 );
+    _writeln( Color( 'WRN', FG_WARNING_COLOR ), ' ', Time, ': ', a1 );
     LeaveCriticalSection(cs);
 end;
 
@@ -440,7 +440,7 @@ procedure TLogger.warn( a1: variant; a2: variant );
 begin
     if ( not warnEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'WARNING', FG_WARNING_COLOR ), ' ', Time, ': ', a1, ' ', a2 );
+    _writeln( Color( 'WRN', FG_WARNING_COLOR ), ' ', Time, ': ', a1, ' ', a2 );
     LeaveCriticalSection(cs);
 end;
 
@@ -448,7 +448,7 @@ procedure TLogger.warn( a1: variant; a2: variant; a3: variant );
 begin
     if ( not warnEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'WARNING', FG_WARNING_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3 );
+    _writeln( Color( 'WRN', FG_WARNING_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3 );
     LeaveCriticalSection(cs);
 end;
 
@@ -456,7 +456,7 @@ procedure TLogger.warn( a1: variant; a2: variant; a3: variant; a4: variant );
 begin
     if ( not warnEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'WARNING', FG_WARNING_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4 );
+    _writeln( Color( 'WRN', FG_WARNING_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4 );
     LeaveCriticalSection(cs);
 end;
 
@@ -464,7 +464,7 @@ procedure TLogger.warn( a1: variant; a2: variant; a3: variant; a4: variant; a5: 
 begin
     if ( not warnEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'WARNING', FG_WARNING_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5 );
+    _writeln( Color( 'WRN', FG_WARNING_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5 );
     LeaveCriticalSection(cs);
 end;
 
@@ -472,7 +472,7 @@ procedure TLogger.warn( a1: variant; a2: variant; a3: variant; a4: variant; a5: 
 begin
     if ( not warnEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'WARNING', FG_WARNING_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6 );
+    _writeln( Color( 'WRN', FG_WARNING_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6 );
     LeaveCriticalSection(cs);
 end;
 
@@ -480,7 +480,7 @@ procedure TLogger.warn( a1: variant; a2: variant; a3: variant; a4: variant; a5: 
 begin
     if ( not warnEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'WARNING', FG_WARNING_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7 );
+    _writeln( Color( 'WRN', FG_WARNING_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7 );
     LeaveCriticalSection(cs);
 end;
 
@@ -488,7 +488,7 @@ procedure TLogger.warn( a1: variant; a2: variant; a3: variant; a4: variant; a5: 
 begin
     if ( not warnEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'WARNING', FG_WARNING_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8 );
+    _writeln( Color( 'WRN', FG_WARNING_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8 );
     LeaveCriticalSection(cs);
 end;
 
@@ -496,7 +496,7 @@ procedure TLogger.warn( a1: variant; a2: variant; a3: variant; a4: variant; a5: 
 begin
     if ( not warnEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'WARNING', FG_WARNING_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9 );
+    _writeln( Color( 'WRN', FG_WARNING_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9 );
     LeaveCriticalSection(cs);
 end;
 
@@ -504,7 +504,7 @@ procedure TLogger.warn( a1: variant; a2: variant; a3: variant; a4: variant; a5: 
 begin
     if ( not warnEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'WARNING', FG_WARNING_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9, ' ', a10 );
+    _writeln( Color( 'WRN', FG_WARNING_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9, ' ', a10 );
     LeaveCriticalSection(cs);
 end;
 
@@ -513,7 +513,7 @@ procedure TLogger.notice( a1: variant );
 begin
     if ( not noticeEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'NOTICE ', FG_NOTICE_COLOR ), ' ', Time, ': ', a1 );
+    _writeln( Color( 'INF', FG_NOTICE_COLOR ), ' ', Time, ': ', a1 );
     LeaveCriticalSection(cs);
 end;
 
@@ -521,7 +521,7 @@ procedure TLogger.notice( a1: variant; a2: variant );
 begin
     if ( not noticeEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'NOTICE ', FG_NOTICE_COLOR ), ' ', Time, ': ', a1, ' ', a2 );
+    _writeln( Color( 'INF', FG_NOTICE_COLOR ), ' ', Time, ': ', a1, ' ', a2 );
     LeaveCriticalSection(cs);
 end;
 
@@ -529,7 +529,7 @@ procedure TLogger.notice( a1: variant; a2: variant; a3: variant );
 begin
     if ( not noticeEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'NOTICE ', FG_NOTICE_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3 );
+    _writeln( Color( 'INF', FG_NOTICE_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3 );
     LeaveCriticalSection(cs);
 end;
 
@@ -537,7 +537,7 @@ procedure TLogger.notice( a1: variant; a2: variant; a3: variant; a4: variant );
 begin
     if ( not noticeEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'NOTICE ', FG_NOTICE_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4 );
+    _writeln( Color( 'INF', FG_NOTICE_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4 );
     LeaveCriticalSection(cs);
 end;
 
@@ -545,7 +545,7 @@ procedure TLogger.notice( a1: variant; a2: variant; a3: variant; a4: variant; a5
 begin
     if ( not noticeEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'NOTICE ', FG_NOTICE_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5 );
+    _writeln( Color( 'INF', FG_NOTICE_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5 );
     LeaveCriticalSection(cs);
 end;
 
@@ -553,7 +553,7 @@ procedure TLogger.notice( a1: variant; a2: variant; a3: variant; a4: variant; a5
 begin
     if ( not noticeEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'NOTICE ', FG_NOTICE_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6 );
+    _writeln( Color( 'INF', FG_NOTICE_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6 );
     LeaveCriticalSection(cs);
 end;
 
@@ -561,7 +561,7 @@ procedure TLogger.notice( a1: variant; a2: variant; a3: variant; a4: variant; a5
 begin
     if ( not noticeEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'NOTICE ', FG_NOTICE_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7 );
+    _writeln( Color( 'INF', FG_NOTICE_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7 );
     LeaveCriticalSection(cs);
 end;
 
@@ -569,7 +569,7 @@ procedure TLogger.notice( a1: variant; a2: variant; a3: variant; a4: variant; a5
 begin
     if ( not noticeEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'NOTICE ', FG_NOTICE_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8 );
+    _writeln( Color( 'INF', FG_NOTICE_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8 );
     LeaveCriticalSection(cs);
 end;
 
@@ -577,7 +577,7 @@ procedure TLogger.notice( a1: variant; a2: variant; a3: variant; a4: variant; a5
 begin
     if ( not noticeEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'NOTICE ', FG_NOTICE_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9 );
+    _writeln( Color( 'INF', FG_NOTICE_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9 );
     LeaveCriticalSection(cs);
 end;
 
@@ -585,7 +585,7 @@ procedure TLogger.notice( a1: variant; a2: variant; a3: variant; a4: variant; a5
 begin
     if ( not warnEnabled ) then exit;
     EnterCriticalSection(cs);
-    _writeln( Color( 'NOTICE ', FG_NOTICE_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9, ' ', a10 );
+    _writeln( Color( 'INF', FG_NOTICE_COLOR ), ' ', Time, ': ', a1, ' ', a2, ' ', a3, ' ', a4, ' ', a5, ' ', a6, ' ', a7, ' ', a8, ' ', a9, ' ', a10 );
     LeaveCriticalSection(cs);
 end;
 

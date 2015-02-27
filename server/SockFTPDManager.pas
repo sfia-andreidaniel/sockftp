@@ -93,6 +93,7 @@ type
             function getLogFileName: AnsiString;
             function getIllegalFileNames: TStrArray;
             function getAllowedFileNames: TStrArray;
+            function getMaxFileSize: Int64;
         
         private
             
@@ -121,6 +122,8 @@ type
             property FileSystemIllegalFileNames: TStrArray read getIllegalFileNames;
             { [filesystem].allowedfilenames }
             property FileSystemAllowedFileNames: TStrArray read getAllowedFileNames;
+            { [filesystem].maxfilesize }
+            property FileSystemMaxFileSize: int64 read getMaxFileSize;
             { [webserver].url }
             property WebServerFileFormat: AnsiString read getWebServerFileFormat;
             { [origins].* }
@@ -211,6 +214,7 @@ var UsersList: TStringList;
     ifnames: TStrArray;
     NumOrigins: LongInt;
     IniFile: AnsiString;
+    MFSize: Int64;
     
 begin
 
@@ -223,6 +227,7 @@ begin
     InitCriticalSection( CS );
     
     logPath := logFileName;
+    MFSize := FileSystemMaxFileSize;
     
     if ( logPath <> 'console' )
         then init_logger( logPath );
@@ -245,6 +250,18 @@ begin
     
     end;
     
+    ifnames := FileSystemAllowedFileNames;
+    
+    n := Length( ifNames );
+    
+    if ( n > 0 ) then
+    begin
+        
+        Console.log( 'Registered allowed file name: "' + Console.Color( ifnames[ i - 1 ], FG_LOG_COLOR ) + '"' );
+        
+    end;
+    
+    Console.log( 'Maximum uploadable file size: ' + Console.Color( Int64ToSize( MFSize ), FG_LOG_COLOR ) );
     
     setLength( Users, 0 );
     setLength( _origins, 0 );
@@ -461,6 +478,16 @@ begin
 
     result := ini.ReadString( 'daemon', 'protocol', 'sockftp' );
 
+end;
+
+function TSockFTPDManager.getMaxFileSize(): Int64;
+begin
+    
+    result := SizeToInt64( ini.readString( 'filesystem', 'maxfilesize', '0' ) );
+    
+    if result = -1 then
+        raise Exception.Create( 'Unparseable option: "[filesystem].maxfilesize"' );
+        
 end;
 
 function TSockFTPDManager.getServerName(): AnsiString;
@@ -923,6 +950,7 @@ var o: TFileStruct;
     i: LongInt;
     DFile: AnsiString;
     f1: File;
+    mfsize: Int64;
 begin
     
     CanCS := FALSE;
@@ -937,6 +965,11 @@ begin
         // check if user ok
         If not UserExists( User ) then
             raise Exception.Create( 'E_USER_NOT_FOUND' );
+    
+        mfsize := FileSystemMaxFileSize;
+        
+        if ( mfsize > 0 ) and ( mfsize < Size ) then
+            raise Exception.Create( 'E_FILE_TOO_BIG' );
     
         o.size  := Size;
         f       := SanitizeFileName( FileName );
