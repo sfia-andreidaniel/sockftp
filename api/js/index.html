@@ -9,7 +9,12 @@
         
         window.addEventListener( 'load', function() {
             
-            uploader = new SockFTP( '127.0.0.1', 8181, 'andrei', '12345' );
+            uploader = new SockFTP( {
+                "host": "127.0.0.1",
+                "port": 8181,
+                "user": "andrei",
+                "password": "12345"
+            } );
             
             uploader.on( 'log', function( args ) {
                 
@@ -36,7 +41,7 @@
 <body>
     
     <label>Select file to upload:
-        <input type="file" id="uploader" />
+        <input type="file" id="uploader" multiple />
     </label>
     
     <br />

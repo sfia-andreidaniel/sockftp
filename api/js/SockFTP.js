@@ -1,3 +1,8 @@
+var SockFTPTransferType;
+(function (SockFTPTransferType) {
+    SockFTPTransferType[SockFTPTransferType["UPLOAD"] = 0] = "UPLOAD";
+    SockFTPTransferType[SockFTPTransferType["DOWNLOAD"] = 1] = "DOWNLOAD";
+})(SockFTPTransferType || (SockFTPTransferType = {}));
 var ConnectionState;
 (function (ConnectionState) {
     ConnectionState[ConnectionState["CLOSED"] = 0] = "CLOSED";
@@ -42,6 +47,21 @@ var Events = (function () {
     };
     return Events;
 })();
+/* Standard events list that can be binded to a sockftp instance:
+ *
+ * log         ( type: string, ...data: any[]     ) // use this events to debug client logging
+ * error       ( reason: string                   ) // use this event to fetch errors from the client. note that the "log"( type="error" ) is also triggered.
+ *
+ * connect                                          // fired when the connection becomes up
+ * disconnect                                       // fired when the connection becomes down
+ *
+ * auth        ( details: SockFTPAuthDetails     ) // fired as a result of authentication.
+ * transferinit( details: SockFTPTransferDetails ) // fired as a result of initiation of a transfer
+ * put         ( details: SockFTPUploadDetails   ) // fired as a result of a completed upload
+ * get         ( details: SockFTPDownloadDetails ) // fired as a result of a completed download
+ * progress    ( details: SockFTPProgressDetails ) // fired when a progress ( upload / download ) occurs
+ *
+ */
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -50,28 +70,89 @@ var __extends = this.__extends || function (d, b) {
 };
 var SockFTP = (function (_super) {
     __extends(SockFTP, _super);
-    function SockFTP(host, port, userName, password) {
+    function SockFTP(/* host: string, port: number, userName: string, password: string */ settings) {
         _super.call(this);
-        this.host = '';
-        this.port = 0;
-        this.userName = '';
-        this.password = '';
+        // connection settings
+        this.settings = null;
+        // weather authenticated or not
         this.authenticated = false;
+        // the websocket connection
         this.socket = null;
+        // connection state
         this.state = 0 /* CLOSED */;
+        // private flag of last connection state triggered, in order to avoid firing
+        // duplicate connection change events
         this.lastState = null;
-        this.commandId = 1; // the order of the commands issued by this client
         // the queue with the packets to send to the server
         this.outQueue = [];
+        // the queue with current running commands on client
         this.cmdQueue = [];
+        // connection internal flags
         this.checkDrain = false;
         this.packetSchedulerThreadId = null;
-        this.host = host;
-        this.port = port;
-        this.userName = userName;
-        this.password = password;
+        this.connectionAwarenessThreadId = null;
+        this.offlineAwareSeconds = 0;
+        this.neverAttemptedToConnect = true;
+        this.closedByMe = false;
+        settings = settings || {
+            "host": "127.0.0.1",
+            "port": 8181,
+            "user": "anonymous",
+            "password": ""
+        };
+        this.settings = {
+            "host": settings.host || "127.0.0.1",
+            "port": settings.port || 8181,
+            "user": settings.user || null,
+            "password": settings.password || null,
+            "autoAuth": typeof settings.autoAuth == 'undefined' ? true : !!settings.autoAuth,
+            "reconnectTimeout": typeof settings.reconnectTimeout == 'undefined' ? 60 : settings.reconnectTimeout,
+            "autoConnect": typeof settings.autoConnect == 'undefined' ? true : !!settings.autoConnect,
+            "autoDisconnect": typeof settings.autoDisconnect == 'undefined' ? true : !!settings.autoDisconnect
+        };
         this.authenticated = false;
-        this.socket = new WebSocket('ws://' + this.host + ':' + this.port + '/sockftp', 'sockftp');
+        // this.connect();
+        (function (me) {
+            me.on('drain', function () {
+                var chunk;
+                if (me.outQueue.length && me.state == 1 /* OPENED */) {
+                    chunk = me.outQueue.shift();
+                    try {
+                        me.socket.send(chunk);
+                        if (me.outQueue.length == 0 && me.socket.bufferedAmount == 0) {
+                            me.ondrain();
+                        }
+                    }
+                    catch (E) {
+                        me.state = 0 /* CLOSED */;
+                        me.fire('state-changed');
+                    }
+                }
+            });
+            me.on('state-changed', function () {
+                me.onstatechanged();
+            });
+        })(this);
+    }
+    SockFTP.prototype.connect = function () {
+        this.neverAttemptedToConnect = false;
+        this.offlineAwareSeconds = 0;
+        this.closedByMe = false;
+        if (this.settings.reconnectTimeout > 0) {
+            this.connectionAwareness = true;
+        }
+        if (this.socket) {
+            // won't reconnect if we're allready connected
+            if (this.state == 1 /* OPENED */ && this.socket.readyState == WebSocket.OPEN) {
+                return this;
+            }
+            // won't connect if we're allready attempting to connect
+            if (this.socket.readyState == (WebSocket.CONNECTING || 0)) {
+                return this;
+            }
+            delete this.socket;
+        }
+        this.socket = new WebSocket('ws://' + this.settings.host + ':' + this.settings.port + '/sockftp', 'sockftp');
         (function (me) {
             me.socket.addEventListener('open', function (evt) {
                 if (me.state != 1 /* OPENED */) {
@@ -97,27 +178,22 @@ var SockFTP = (function (_super) {
             me.socket.addEventListener('message', function (evt) {
                 me.dispatch(evt);
             }, false);
-            me.on('drain', function () {
-                var chunk;
-                if (me.outQueue.length && me.state == 1 /* OPENED */) {
-                    chunk = me.outQueue.shift();
-                    try {
-                        me.socket.send(chunk);
-                        if (me.outQueue.length == 0 && me.socket.bufferedAmount == 0) {
-                            me.ondrain();
-                        }
-                    }
-                    catch (E) {
-                        me.state = 0 /* CLOSED */;
-                        me.fire('state-changed');
-                    }
-                }
-            });
-            me.on('state-changed', function () {
-                me.onstatechanged();
-            });
         })(this);
-    }
+        return this;
+    };
+    SockFTP.prototype.disconnect = function () {
+        this.closedByMe = true;
+        if (this.socket) {
+            if (this.socket.readyState == WebSocket.CLOSING) {
+                return this;
+            }
+            if (this.socket.readyState == WebSocket.CLOSED) {
+                return this;
+            }
+            this.socket.close();
+        }
+        return this;
+    };
     /* Send raw data. To not be used directly by the programmer.
        
        Trows E_INVALID_STATE exception if connection is not available in the
@@ -144,6 +220,13 @@ var SockFTP = (function (_super) {
             if (this.cmdQueue.length) {
                 this.cmdQueue[0].init();
             }
+            else {
+                // if the queue becomes empty, and settings.autoDisconnect IS TRUE, we disconnect gracefully
+                if (this.settings.autoDisconnect) {
+                    this.disconnect();
+                    this.neverAttemptedToConnect = true;
+                }
+            }
         }
     };
     SockFTP.prototype.addCommand = function (command, atFirst) {
@@ -153,6 +236,9 @@ var SockFTP = (function (_super) {
         }
         else {
             this.cmdQueue.unshift(command);
+        }
+        if (this.settings.autoConnect && this.neverAttemptedToConnect) {
+            this.connect();
         }
         if (this.state == 1 /* OPENED */) {
             if (this.cmdQueue.length == 1 || (this.cmdQueue.length && !this.cmdQueue[0].isRunning)) {
@@ -184,7 +270,7 @@ var SockFTP = (function (_super) {
         configurable: true
     });
     SockFTP.prototype.packetSchedulerThread = function () {
-        if (this.checkDrain && this.state == 1 /* OPENED */) {
+        if (this.checkDrain && this.state == 1 /* OPENED */ && this.packetSchedulerThreadId !== null) {
             if (this.outQueue.length == 0 && this.socket.bufferedAmount == 0) {
                 this.checkDrain = false;
                 this.packetScheduler = false;
@@ -192,12 +278,49 @@ var SockFTP = (function (_super) {
             }
             else if (this.outQueue.length && this.socket.bufferedAmount == 0) {
                 this.fire('drain');
-                console.log('fd');
             }
         }
     };
+    Object.defineProperty(SockFTP.prototype, "connectionAwareness", {
+        get: function () {
+            return this.connectionAwarenessThreadId != null;
+        },
+        set: function (on) {
+            on = !!on;
+            if (on != this.connectionAwareness) {
+                this.offlineAwareSeconds = 0;
+                if (on) {
+                    (function (me) {
+                        me.connectionAwarenessThreadId = window.setInterval(function () {
+                            me.connectionAwarenessThread();
+                        }, 1000);
+                    })(this);
+                }
+                else {
+                    window.clearInterval(this.connectionAwarenessThreadId);
+                    this.connectionAwarenessThreadId = null;
+                }
+            }
+        },
+        enumerable: true,
+        configurable: true
+    });
+    SockFTP.prototype.connectionAwarenessThread = function () {
+        if (this.settings.reconnectTimeout > 0 && this.state == 0 /* CLOSED */ && this.connectionAwarenessThreadId !== null) {
+            this.offlineAwareSeconds++;
+            if (this.offlineAwareSeconds > this.settings.reconnectTimeout) {
+                this.connect();
+            }
+            else {
+                this.log('reconnecting in: ' + (this.settings.reconnectTimeout - this.offlineAwareSeconds) + ' seconds');
+            }
+        }
+        else {
+            this.offlineAwareSeconds = 0;
+        }
+    };
     SockFTP.prototype.issueCommandId = function () {
-        return ++this.commandId;
+        return ++SockFTP.$id;
     };
     SockFTP.prototype.log = function () {
         var args = [];
@@ -223,6 +346,7 @@ var SockFTP = (function (_super) {
         args.unshift('warn');
         this.fire('log', args);
     };
+    // handles a message from the server.
     SockFTP.prototype.dispatch = function (evt) {
         var data, i, len;
         if (evt) {
@@ -254,7 +378,7 @@ var SockFTP = (function (_super) {
                     }
                     break;
                 default:
-                    // binary message? from server? nope!
+                    // binary message? from server? nope! we don't accept yet binary messages from server.
                     this.socket.close();
                     this.warn('Warning: Got binary message from server. Not implemented at this point');
                     break;
@@ -265,15 +389,35 @@ var SockFTP = (function (_super) {
         if (success === void 0) { success = null; }
         if (error === void 0) { error = null; }
         if (progress === void 0) { progress = null; }
+        var command, details;
         (function (me) {
-            me.addCommand(new SockFTP_Command_Put(me, f, success || function () {
+            command = new SockFTP_Command_Put(me, f, success || function () {
                 me.log('PUT "' + f.name + '": OK.');
             }, error || function (reason) {
                 me.error('PUT "' + f.name + '": ERROR: ' + (reason || 'Unknown upload error'));
             }, progress || function (percent, name) {
                 me.log('PUT "' + f.name + '": ' + percent + '%');
-            }));
+            });
+            me.addCommand(command);
         })(this);
+        details = {
+            "id": command.commandID,
+            "type": 0 /* UPLOAD */,
+            "name": command.fname,
+            "size": command.length
+        };
+        try {
+            this.fire('transferinit', details);
+        }
+        catch (E) {
+        }
+        return {
+            "name": command.fname,
+            "size": command.length,
+            "type": command.type,
+            "id": command.commandID,
+            "ok": true
+        };
     };
     // binds the uploader to a FileInput element, so that
     // any time the file changes, the file is uploaded to the server
@@ -288,9 +432,9 @@ var SockFTP = (function (_super) {
         })(this);
     };
     SockFTP.prototype.login = function (user, password, success, error) {
-        this.userName = user || 'anonymous';
-        this.password = password || '';
-        this.addCommand(new SockFTP_Command_Login(this, this.userName, this.password, success, error), true);
+        this.settings.user = user || 'anonymous';
+        this.settings.password = password || '';
+        this.addCommand(new SockFTP_Command_Login(this, this.settings.user, this.settings.password, success, error), true);
     };
     // called each time we don't have data in the send buffer
     SockFTP.prototype.ondrain = function () {
@@ -309,18 +453,22 @@ var SockFTP = (function (_super) {
         this.lastState = this.state;
         this.authenticated = false;
         if (this.state == 1 /* OPENED */) {
-            // send a login command
-            (function (me) {
-                me.login(me.userName, me.password, function () {
-                    me.authenticated = true;
-                    me.log('Authentication OK');
-                }, function (reason) {
-                    me.state = 0 /* CLOSED */;
-                    me.error('Authentication FAILED: ' + (reason || 'Unknown reason'));
-                    me.onstatechanged();
-                });
-            })(this);
-            this.warn("Client[" + this.host + ":" + this.port + "] -> UP");
+            if (this.settings.autoAuth && this.settings.user) {
+                // send a login command
+                (function (me) {
+                    me.login(me.settings.user, me.settings.password || '', function () {
+                        me.authenticated = true;
+                        me.log('Authentication OK');
+                    }, function (reason) {
+                        me.state = 0 /* CLOSED */;
+                        me.error('Authentication FAILED: ' + (reason || 'Unknown reason'));
+                        me.onstatechanged();
+                    });
+                })(this);
+            }
+            this.warn("Client[" + this.settings.host + ":" + this.settings.port + "] -> UP");
+            this.fire('connect');
+            this.connectionAwareness = false;
         }
         else {
             // When the client GETS DOWN ONLY:
@@ -337,9 +485,41 @@ var SockFTP = (function (_super) {
                 this.warn('Closing socket');
                 this.socket.close();
             }
-            this.warn("Client[" + this.host + ":" + this.port + "] -> DOWN");
+            this.warn("Client[" + this.settings.host + ":" + this.settings.port + "] -> DOWN");
+            this.fire('disconnect');
+            if (!this.closedByMe) {
+                this.connectionAwareness = true;
+            }
         }
     };
+    SockFTP.prototype.getProgressDetails = function (type) {
+        var i, len, result = {
+            "type": type,
+            "totalFilesLeft": 0,
+            "totalBytesLeft": 0
+        };
+        for (i = 0, len = this.cmdQueue.length; i < len; i++) {
+            if (this.cmdQueue[i].transferType == type) {
+                switch (type) {
+                    case 0 /* UPLOAD */:
+                        result.totalFilesLeft++;
+                        result.totalBytesLeft += (this.cmdQueue[i].length - this.cmdQueue[i].sent);
+                        if (this.cmdQueue[i].isRunning) {
+                            result.currentFile = this.cmdQueue[i].fname;
+                            result.currentTransferSize = this.cmdQueue[i].length;
+                            result.currentTransferred = this.cmdQueue[i].sent;
+                            result.currentProgress = this.cmdQueue[i].percent;
+                        }
+                        break;
+                    case 1 /* DOWNLOAD */:
+                        break;
+                }
+            }
+        }
+        return result;
+    };
+    // command ID. Static.
+    SockFTP.$id = 0;
     return SockFTP;
 })(Events);
 var SockFTP_Command = (function (_super) {
@@ -352,6 +532,8 @@ var SockFTP_Command = (function (_super) {
         this.doneTriggered = false;
         this.killTriggered = false;
         this.isRunning = false;
+        this.transferType = null;
+        this.percent = 0;
         this.client = client;
         this.commandID = client.issueCommandId();
         this.name = 'virtual';
@@ -452,14 +634,39 @@ var SockFTP_Command_Login = (function (_super) {
         });
     };
     SockFTP_Command_Login.prototype.onMessage = function (msg) {
+        var details = {
+            "ok": false,
+            "user": this.userName
+        };
         _super.prototype.onMessage.call(this, msg);
         if (msg && msg.ok) {
+            this.client.authenticated = true;
+            details.ok = true;
+            try {
+                this.client.fire('auth', details);
+            }
+            catch (E) {
+            }
             this.succeed();
         }
         else if (msg && msg.error) {
+            this.client.authenticated = false;
+            details.error = msg.error;
+            try {
+                this.client.fire('auth', details);
+            }
+            catch (E) {
+            }
             this.fail(msg.error);
         }
         else {
+            details.error = 'Bad message received from server';
+            try {
+                this.client.fire('auth', details);
+            }
+            catch (E) {
+            }
+            this.client.authenticated = false;
             this.fail("E_BAD_MESSAGE");
         }
     };
@@ -476,8 +683,8 @@ var SockFTP_Command_Put = (function (_super) {
         this.type = '';
         this.fname = '';
         this.locked = false;
-        this.percent = 0;
         this.packetSize = 32000;
+        this.transferType = 0 /* UPLOAD */;
         this.progress = null;
         this.onSuccess = success;
         this.onError = error;
@@ -521,6 +728,11 @@ var SockFTP_Command_Put = (function (_super) {
                                 me.progress(me.percent, me.fname);
                             }
                         }
+                        try {
+                            me.client.fire('progress', me.client.getProgressDetails(0 /* UPLOAD */));
+                        }
+                        catch (E) {
+                        }
                         me.locked = false;
                     }
                     else if (me.callbacksTriggered) {
@@ -534,13 +746,41 @@ var SockFTP_Command_Put = (function (_super) {
     };
     SockFTP_Command_Put.prototype.onMessage = function (msg) {
         _super.prototype.onMessage.call(this, msg);
+        var details = {
+            "name": this.fname,
+            "size": this.length,
+            "type": this.type,
+            "id": this.commandID,
+            "ok": false
+        };
         if (msg && msg.ok) {
+            // console.warn( msg );
+            details.ok = true;
+            details.url = msg.file;
+            this.client.log('File: ' + this.fname + ' can be accessed via url: ', "\n  ", details.url);
+            try {
+                this.client.fire('put', details);
+            }
+            catch (error) {
+            }
             this.succeed();
         }
         else if (msg && msg.error) {
+            details.error = msg.error;
+            try {
+                this.client.fire('put', details);
+            }
+            catch (error) {
+            }
             this.fail(msg.error);
         }
         else {
+            details.error = 'Bad message received from server';
+            try {
+                this.client.fire('put', details);
+            }
+            catch (error) {
+            }
             this.fail("E_BAD_MESSAGE");
         }
     };

@@ -22,24 +22,6 @@ begin
     end else
     begin
 
-
-        // Setup logging level
-        if ISockFTPDManager.LoggingLevel = '1' then
-        Begin
-            Console.LogEnabled := FALSE;
-        end else
-        if ISockFTPDManager.LoggingLevel = '2' then
-        Begin
-            Console.LogEnabled := FALSE;
-            Console.WarnEnabled := FALSE;
-        End else
-        if ISockFTPDManager.LoggingLevel = '3' then
-        begin
-            Console.LogEnabled := FALSE;
-            Console.WarnEnabled := FALSE;
-            Console.ErrorEnabled := FALSE;
-        end;
-
         D := TSockFTPDDaemon.Create(
             ISockFTPDManager.ServerListenInterface,
             ISockFTPDManager.ServerPort,

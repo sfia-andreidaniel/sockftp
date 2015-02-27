@@ -13,6 +13,9 @@ class SockFTP_Command extends Events {
 	public name                : String; // the name of the command
 	public isRunning           : Boolean = false;
 
+	public transferType        : SockFTPTransferType = null;
+	public percent             : number               = 0;
+
 	constructor( client: SockFTP ) {
 		super();
 

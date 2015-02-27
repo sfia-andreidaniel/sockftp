@@ -129,6 +129,8 @@ type
             procedure notice( a1: variant; a2: variant; a3: variant; a4: variant; a5: variant; a6: variant; a7: variant; a8: variant; a9: variant );
             procedure notice( a1: variant; a2: variant; a3: variant; a4: variant; a5: variant; a6: variant; a7: variant; a8: variant; a9: variant; a10: variant );
 
+            procedure setLoggingLevel( Level: AnsiString );
+
             constructor Create( Destination: AnsiString );
             destructor  Free;
         
@@ -1038,6 +1040,47 @@ begin
             raise Exception.Create( 'Failed to write to log file!' );
     
     end;
+end;
+
+procedure TLogger.setLoggingLevel( Level: AnsiString );
+begin
+    
+    if ( Level = '1' ) then
+    begin
+        LogEnabled := TRUE;
+        WarnEnabled := TRUE;
+        ErrorEnabled := TRUE;
+        NoticeEnabled := FALSE;
+    
+    end else
+    if ( Level = '2' ) then
+    begin
+        LogEnabled := FALSE;
+        WarnEnabled := TRUE;
+        ErrorEnabled := TRUE;
+        NoticeEnabled := FALSE;
+    end else
+    if ( Level = '3' ) then
+    begin
+        LogEnabled := FALSE;
+        WarnEnabled := FALSE;
+        ErrorEnabled := TRUE;
+        NoticeEnabled := FALSE;
+    end else
+    if ( Level = '4' ) then
+    begin
+        LogEnabled := FALSE;
+        WarnEnabled := FALSE;
+        ErrorEnabled := FALSE;
+        NoticeEnabled := FALSE;
+    
+    end else begin
+        LogEnabled := TRUE;
+        WarnEnabled := TRUE;
+        ErrorEnabled := TRUE;
+        NoticeEnabled := TRUE;
+    end;
+    
 end;
 
 procedure init_logger( Location: AnsiString );

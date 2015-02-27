@@ -231,7 +231,10 @@
             
             Console.Log( 'Session #' + IntToStr( Session.ID ) + ' [' + Session.IP + '] STORE "' + FileName + '" AS "' + FS.Local + '" ( Length =', FileLength, ', Mime = "' + FileType + '" )' );
                 
-            Session.SendText( '{"id": ' + IntToStr( CommandId ) + ', "ok": true, "file": { } }' );
+            Session.SendText( '{"id": ' + IntToStr( CommandId ) + ', "ok": true, "file": ' 
+                + json_encode( 
+                    ISockFTPDManager.PrepareString( ISockFTPDManager.WebServerFileFormat, Fs.User, Fs.name )
+                ) + ' }' );
             
         end;
         

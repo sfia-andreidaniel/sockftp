@@ -232,6 +232,8 @@ begin
     if ( logPath <> 'console' )
         then init_logger( logPath );
     
+    Console.setLoggingLevel( LoggingLevel );
+    
     Console.Notice( 'Config file loaded from "' + Console.Color( IniFile, FG_WARNING_COLOR ) + '"' );
     
     ifnames := FileSystemIllegalFileNames;
@@ -502,7 +504,7 @@ begin
     
     result := ini.readString( 'daemon', 'loglevel', '0' );
     
-    if ( result <> '0' ) and ( result <> '1' ) and ( result <> '2' ) and ( result <> '3' ) then
+    if ( result <> '0' ) and ( result <> '1' ) and ( result <> '2' ) and ( result <> '3' ) and ( result <> '4' ) then
         result := '0';
     
 end;

@@ -10,9 +10,10 @@ class SockFTP_Command_Put extends SockFTP_Command {
 	public fname  : string = '';
 
 	public locked : boolean = false;
-	public percent: number = 0;
 
 	public packetSize: number = 32000;
+
+	public transferType: SockFTPTransferType = SockFTPTransferType.UPLOAD;
 
 	public progress: ( percent: number, name: string ) => void = null;
 
@@ -96,6 +97,14 @@ class SockFTP_Command_Put extends SockFTP_Command {
 
 						}
 
+						try {
+
+							me.client.fire( 'progress', me.client.getProgressDetails( SockFTPTransferType.UPLOAD ) );
+
+						} catch (E) {
+
+						}
+
 						me.locked = false;
 
 					} else 
@@ -119,7 +128,30 @@ class SockFTP_Command_Put extends SockFTP_Command {
 
 		super.onMessage( msg );
 
+		var details: SockFTPUploadDetails = {
+			"name"      : this.fname,
+			"size"      : this.length,
+			"type"      : this.type,
+			"id"        : this.commandID,
+			"ok"        : false
+		};
+
 		if ( msg && msg.ok ) {
+
+			// console.warn( msg );
+
+			details.ok = true;
+			details.url = msg.file;
+
+			this.client.log( 'File: ' + this.fname + ' can be accessed via url: ', "\n  ", details.url );
+
+			try {
+
+				this.client.fire( 'put', details );
+
+			} catch ( error ) {
+
+			}
 
 			this.succeed();
 
@@ -127,10 +159,32 @@ class SockFTP_Command_Put extends SockFTP_Command {
 
 		if ( msg && msg.error ) {
 
+			details.error = msg.error;
+			
+			try {
+
+				this.client.fire( 'put', details );
+
+			} catch ( error ) {
+
+			}
+
 			this.fail( msg.error );
 		
 		} else {
+			
+			details.error = 'Bad message received from server';
+
+			try {
+
+				this.client.fire( 'put', details );
+
+			} catch (error) {
+
+			}
+
 			this.fail( "E_BAD_MESSAGE" );
+
 		}
 
 	}

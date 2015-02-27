@@ -35,18 +35,60 @@ class SockFTP_Command_Login extends SockFTP_Command {
 
 	public onMessage( msg: any ) {
 
+		var details: SockFTPAuthDetails = {
+			"ok": false,
+			"user": this.userName
+		};
+
 		super.onMessage( msg );
 
 		if ( msg && msg.ok ) {
+
+			this.client.authenticated = true;
+
+			details.ok = true;
+
+			try {
+
+				this.client.fire( 'auth', details );
+
+			} catch (E) {
+
+			}
 
 			this.succeed();
 
 		} else
 		if ( msg && msg.error ) {
 
+			this.client.authenticated = false;
+
+			details.error = msg.error;
+
+			try {
+
+				this.client.fire( 'auth', details );
+
+			} catch (E) {
+
+			}
+
 			this.fail( msg.error );
 		
 		} else {
+
+			details.error = 'Bad message received from server';
+
+			try {
+
+				this.client.fire( 'auth', details );
+
+			} catch (E) {
+
+			}
+
+			this.client.authenticated = false;
+
 			this.fail( "E_BAD_MESSAGE" );
 		}
 
