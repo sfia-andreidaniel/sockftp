@@ -59,6 +59,7 @@ type
 
     {$i ./commands/FTPD_Auth_Type.inc}
     {$i ./commands/FTPD_Put_Type.inc}
+    {$i ./commands/FTPD_List_Type.inc}
 
 implementation
 
@@ -87,6 +88,7 @@ end;
 
 {$i ./commands/FTPD_Auth_Impl.inc}
 {$i ./commands/FTPD_Put_Impl.inc}
+{$i ./commands/FTPD_List_Impl.inc}
 
 procedure TSockFTPDSession.OnMessage( Data: AnsiString; Binary: Boolean );
 

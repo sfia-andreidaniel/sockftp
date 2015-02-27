@@ -55,3 +55,20 @@ enum ConnectionState {
 	CLOSED,
 	OPENED
 }
+
+enum FSItem {
+	FILE,
+	FOLDER
+}
+
+interface FS_Entry {
+
+	name   : string; // the name of the item
+	type   : FSItem; // the type of the item
+	mime   : string; // mime-type of the item
+	
+	url?   : string; // if the item has an url for accessing
+	size?  : number; // if the user has a size
+	thumb? : string; // if the user has a thumbnail url
+
+}
