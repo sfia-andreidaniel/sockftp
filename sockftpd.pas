@@ -18,26 +18,45 @@ begin
 
     if not ISockFTPDManagerLoaded then
     begin
+        
         Console.error( 'SockFTPD will now quit' );
+        
+        Halt( 78 ); // configuration error
+        
     end else
     begin
 
-        D := TSockFTPDDaemon.Create(
-            ISockFTPDManager.ServerListenInterface,
-            ISockFTPDManager.ServerPort,
-            ISockFTPDManager.ServerProtocolName,
-            ISockFTPDManager.AllowedOriginsList
-        );
-    
-        try
+        try 
 
-            D.Run;
+            D := TSockFTPDDaemon.Create(
+                ISockFTPDManager.ServerListenInterface,
+                ISockFTPDManager.ServerPort,
+                ISockFTPDManager.ServerProtocolName,
+                ISockFTPDManager.AllowedOriginsList
+            );
+        
+            try
+
+                D.Run;
+        
+            finally
+        
+                D.Free;
     
-        finally
-    
-            D.Free;
-    
-        end;
+            end;
+        
+        except
+            
+            On E: Exception Do
+            Begin       
+                
+                Console.Error( 'Internal software error: ' + E.Message );
+                Halt( 70 ); // Internal software error
+                
+            End;
+        
+        End;
+            
 
     end;
     

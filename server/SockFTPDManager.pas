@@ -18,12 +18,19 @@ type
     
     TUserConfig   = Record
         
-        UserName  : AnsiString;
-        Password  : AnsiString; // password is in md5 format
-        Quota     : Int64;      // quota of the user on disk
-        FreeSpace : Int64;      // the free space of the user
+        UserName    : AnsiString;
+        Password    : AnsiString; // password is in md5 format
+        Quota       : Int64;      // quota of the user on disk
+        FreeSpace   : Int64;      // the free space of the user
         
-        Ready     : Boolean;    // weather the home dir of the user was created successfully or not
+        Ready       : Boolean;    // weather the home dir of the user was created successfully or not
+        
+        CanRead     : Boolean;    // weather the user can read
+        CanWrite    : Boolean;    // weather the user can write
+        
+        AnyPassword : Boolean;    // weather the user can login using any password ( good for anonymous accounts )
+
+        RootAccount : Boolean;    // if this user can read outside it's home dir or not ( of course, limited to root folder )
         
     End;
     
@@ -79,6 +86,8 @@ type
             function getIllegalFileNames: TStrArray;
             function getAllowedFileNames: TStrArray;
             function getMaxFileSize: Int64;
+        
+            procedure PrepareSpecialUserPerms( var user: TUserConfig; UnparsedPerms: AnsiString );
         
         private
             
@@ -137,6 +146,15 @@ type
             
             { TRUE if userName exists }
             function  userExists( userName: AnsiString ): boolean;
+            
+            { TRUE if userName can read }
+            function  userCanRead( userName: AnsiString ): boolean;
+            
+            { TRUE if userName can write }
+            function  userCanWrite( userName: AnsiString ): boolean;
+            
+            { TRUE if username can read outside it's home directory ( BUT LIMITED TO This.FileSystemRoot DIRECTORY ) }
+            function  userCanReadOutsideHome( userName: AnsiString ): boolean;
             
             { Ensures the user home folder is created }
             function  createUserDir( userName: AnsiString ): boolean;
@@ -225,7 +243,7 @@ begin
         for i := 1 to n do
         begin
             
-            Console.log( 'Registered illegal file name: "' + Console.Color( ifnames[ i - 1 ], FG_WARNING_COLOR ) + '"' );
+            Console.log( 'Registered ' + Console.Color( 'illegal', FG_ERROR_COLOR ) + ' file name: "' + Console.Color( ifnames[ i - 1 ], FG_ERROR_COLOR ) + '"' );
             
         end;
     
@@ -238,7 +256,7 @@ begin
     if ( n > 0 ) then
     begin
         
-        Console.log( 'Registered allowed file name: "' + Console.Color( ifnames[ i - 1 ], FG_LOG_COLOR ) + '"' );
+        Console.log( 'Registered ' + Console.Color( 'allowed', FG_LOG_COLOR ) + ' file name: "' + Console.Color( ifnames[ i - 1 ], FG_LOG_COLOR ) + '"' );
         
     end;
     
@@ -278,7 +296,21 @@ begin
                 raise Exception.Create( 'Failed to parse configuration file' );
             end;
             
-            users[ NumUsers - 1 ].Ready    := CreateUserDir( users[ NumUsers - 1 ].UserName );
+            users[ NumUsers - 1 ].Ready := CreateUserDir( users[ NumUsers - 1 ].UserName );
+            
+            users[ NumUsers - 1 ].CanRead     := TRUE;
+            users[ NumUsers - 1 ].CanWrite    := TRUE;
+            users[ NumUsers - 1 ].AnyPassword := FALSE;
+            users[ NumUsers - 1 ].RootAccount := FALSE;
+            
+            if ( Length( Users[ NumUsers - 1 ].Password ) <> 32 ) or ( str_minimal_regex( Users[ NumUsers - 1 ].Password, ' ' ) ) then
+            begin
+                
+                // if the password of the user differs of 32 characters, we try to parse special features of the user.
+                
+                PrepareSpecialUserPerms( users[ NumUsers - 1], users[ NumUsers - 1 ].password );
+                
+            end;
         
             if not users[ NumUsers - 1 ].Ready then
             begin
@@ -290,7 +322,14 @@ begin
             
             end;
         
-            Console.Log( 'Quota for user "' + Console.Color( Users[ NumUsers - 1 ].UserName, FG_LOG_COLOR ) + '" : Total = ' + Int64ToSize( Users[ NumUsers - 1 ].Quota ) + ', Free = ' + Int64ToSize( Users[ NumUsers - 1 ].FreeSpace ) );
+            //Console.Log( 'Quota for user "' + Console.Color( Users[ NumUsers - 1 ].UserName, FG_LOG_COLOR ) + '" : Total = ' + Int64ToSize( Users[ NumUsers - 1 ].Quota ) + ', Free = ' + Int64ToSize( Users[ NumUsers - 1 ].FreeSpace ) );
+            Console.Log( 'Loaded user "' + Console.Color( Users[ NumUsers - 1 ].userName, FG_LOG_COLOR ) + '", QUOTA: ' + Int64ToSize( Users[ NumUsers - 1 ].Quota ) 
+                         + ', FREE: ' + Int64ToSize( Users[ NumUsers - 1 ].FreeSpace ) + 
+                         ', READ:', users[ NumUsers - 1 ].CanRead, 
+                         ', WRITE:', users[ NumUsers - 1 ].CanWrite, 
+                         ', ANYPASSWORD: ', users[ NumUsers - 1 ].AnyPassword,
+                         ', ROOT: ', users[ NumUsers - 1 ].RootAccount
+            );
         
         end;
         
@@ -356,9 +395,7 @@ begin
 end;
 
 function TSockFTPDManager.getIllegalFileNames(): TStrArray;
-var i: integer;
-    l: integer;
-    s: ansistring;
+var s: ansistring;
 begin
 
     s := ini.readString( 'filesystem', 'illegalfilenames', '' );
@@ -368,9 +405,7 @@ begin
 end;
 
 function TSockFTPDManager.getAllowedFileNames(): TStrArray;
-var i: integer;
-    l: integer;
-    s: ansistring;
+var s: ansistring;
 begin
 
     s := ini.readString( 'filesystem', 'allowedfilenames', '' );
@@ -423,7 +458,7 @@ var md5Password : AnsiString;
     i: integer;
 begin
     
-    md5Password := md5Print( md5String( password ) );
+    result := false;
     
     for i := 0 to numUsers - 1 do
     begin
@@ -431,12 +466,19 @@ begin
         if users[i].userName = userName then
         begin
             
-            if users[i].password = md5Password then
+            if users[i].AnyPassword then
             begin
-                result := true;
+                result := TRUE;
             end else
             begin
-                result := false;
+            
+                md5Password := md5Print( md5String( password ) );
+        
+                if users[i].password = md5Password then
+                begin
+                    result := true;
+                end
+
             end;
             
             exit;
@@ -921,6 +963,9 @@ begin
         If User = '' then
             raise Exception.Create( 'E_NOT_LOGGED_IN' );
     
+        if not UserCanWrite( User ) then
+            raise Exception.Create( 'E_USER_CANT_WRITE' );
+    
         // check if user ok
         If not UserExists( User ) then
             raise Exception.Create( 'E_USER_NOT_FOUND' );
@@ -1086,9 +1131,165 @@ begin
     
 end;
 
+procedure TSockFTPDManager.PrepareSpecialUserPerms( var user: TUserConfig; unparsedPerms: AnsiString );
+var splits : TStrArray;
+    nsplits: longint;
+    i: longint;
+    optionsIndex: integer;
+    
+    iRdOnly : Boolean;
+    iWrOnly : Boolean;
+    iRdWr   : Boolean;
+    
+begin
+    
+    try 
+    
+        splits := str_split( LowerCase( unparsedPerms ), [ ' ', ',' ] );
+    
+        nsplits := Length( splits );
+    
+        optionsIndex := -1;
+    
+        for i := 0 to nsplits - 1 do
+        begin
+        
+            if ( splits[i] = 'options' ) then
+            begin
+            
+                optionsIndex := i;
+                break;
+            
+            end;
+        
+        end;
+    
+        if optionsIndex = -1 then
+            raise Exception.Create( 'OPTIONS keyword was not found (and the user password is not in md5 format)!' );
+        
+        user.Password := '';
+        user.CanRead := FALSE;
+        user.CanWrite := FALSE;
+        user.AnyPassword := FALSE;
+        user.RootAccount := FALSE;
+
+        case optionsIndex of
+
+            0: begin
+            
+                // no password specified.
+        
+            end;
+            1: begin
+                
+                user.Password := splits[0];
+
+                if ( Length( user.Password ) <> 32 ) then
+                    raise Exception.Create( 'PASSWORD length is not 32 chars (meaning is not in md5 format)!' );
+
+            end else
+            begin
+                raise Exception.Create( 'OPTIONS keyword used ambiguous!' );
+            end
+
+        end;
+    
+        for i := optionsIndex + 1 to nsplits - 1 do
+        begin
+    
+            if splits[ i ] = 'readonly' then
+            begin
+            
+                iRdOnly := TRUE;
+            
+            end else
+            if splits[ i ] = 'writeonly' then
+            begin
+        
+                iWrOnly := TRUE;
+            
+            end else
+            if splits[ i ] = 'readwrite' then
+            begin
+            
+                iRdWr := TRUE;
+            
+            end else
+            if splits[ i ] = 'anypassword' then
+            begin
+            
+                user.AnyPassword := TRUE;
+                
+            end else
+            if splits[ i ] = 'rootaccount' then
+            begin
+            
+                user.RootAccount := TRUE;
+                
+            end else
+            begin
+        
+                raise Exception.Create( 'Ambiguous config option "' + splits[i] + '"!' );
+        
+            end;
+    
+        end;
+    
+        if iRdWr then
+        begin
+        
+            if iRdOnly or iWrOnly then
+                raise Exception.Create( 'The "readwrite" useroption cannot be used in conjunction with "readonly" or "writeonly" option!' );
+        
+            user.CanRead := TRUE;
+            user.CanWrite:= TRUE;
+        
+        end else
+        if iRdOnly then
+        begin
+        
+            if iRdWr or iWrOnly then
+                raise Exception.Create( 'The "readonly" useroption cannot be used in conjunction with "readwrite" or "writeonly" option!' );
+        
+            user.CanRead := TRUE;
+            user.CanWrite := FALSE;
+        
+        end else
+        if iWrOnly then
+        begin
+        
+            if iRdOnly or iRdWr then
+                raise Exception.Create( 'The "writeonly" useroption cannot be used in conjunction with "readonly" or "readwrite" option!' );
+        
+        end else
+        begin
+        
+            user.CanRead := TRUE;
+            user.CanWrite := TRUE;
+        
+        end;
+    
+        if ( Length( user.Password ) <> 32 ) and ( not user.AnyPassword ) then
+            raise Exception.Create( 'The password is invalid, or you did not mention the password. If you did not mention the password, you should use a "anypassword" useroption instead!' );
+    
+    except
+        
+        On E: Exception Do
+        begin
+            
+            Console.Error( 'Failed to parse user options for the username "' + user.UserName + '"' );
+            
+            raise;
+            
+        end;
+    
+    end;
+    
+        
+end;
+
 function TSockFTPDManager.getIniFilePath(): AnsiString;
-var homedir: AnsiString;
-    udir   : AnsiString;
+var udir   : AnsiString; // user home directory
 begin
     
     // search of the config file is done in the following order
@@ -1150,6 +1351,84 @@ begin
         end;
     
     {$endif}
+
+end;
+
+function TSockFTPDManager.UserCanRead( UserName: AnsiString ): boolean;
+var i: LongInt;
+begin
+
+    IN_CS;
+
+    result := FALSE;
+    
+    for i := 0 to numUsers - 1 do
+    begin
+        if users[ i ].UserName = UserName then
+        begin
+            
+            result := users[ i ].CanRead;
+            
+            OUT_CS;
+            
+            exit;
+            
+        end;
+    end;
+    
+    OUT_CS;
+
+end;
+
+function TSockFTPDManager.UserCanReadOutsideHome( UserName: AnsiString ): boolean;
+var i: LongInt;
+begin
+
+    IN_CS;
+
+    result := FALSE;
+    
+    for i := 0 to numUsers - 1 do
+    begin
+        if users[ i ].UserName = UserName then
+        begin
+            
+            result := users[ i ].RootAccount;
+            
+            OUT_CS;
+            
+            exit;
+            
+        end;
+    end;
+    
+    OUT_CS;
+
+end;
+
+function TSockFTPDManager.UserCanWrite( UserName: AnsiString ): boolean;
+var i: LongInt;
+begin
+
+    IN_CS;
+
+    result := FALSE;
+    
+    for i := 0 to numUsers - 1 do
+    begin
+        if users[ i ].UserName = UserName then
+        begin
+            
+            result := users[ i ].CanWrite;
+            
+            OUT_CS;
+            
+            exit;
+            
+        end;
+    end;
+    
+    OUT_CS;
 
 end;
 
