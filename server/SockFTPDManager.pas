@@ -1,5 +1,5 @@
 {$mode objfpc}
-
+{$H+}
 unit SockFTPDManager;
 
 interface uses 
@@ -9,7 +9,8 @@ interface uses
     Logger,
     StringsLib,
     AppUtils,
-    MIME;
+    MIME,
+    mysql50;
 
 const ERR_SM_FAILED_USER_PREPARATION = 1; // Failed to prepare a user
       ERR_SM_FAILED_WRITE_QUOTA_FILE = 2; // Failed to open quota file for writing
@@ -73,6 +74,16 @@ type
             
             _origins: TStrArray;
             
+            DB_Enabled: Boolean;
+            
+            DB_host : PChar;
+            DB_user : PChar;
+            DB_pass : PChar;
+            DB_name : PChar;
+            
+            DB_res  : st_mysql;
+            DB_sock : PMYSQL;
+            
             function getServerPort(): Word;
             function getServerName(): AnsiString;
             function getFileSystemRoot(): AnsiString;
@@ -86,10 +97,11 @@ type
             function getIllegalFileNames: TStrArray;
             function getAllowedFileNames: TStrArray;
             function getMaxFileSize: Int64;
+            function getDatabaseIsEnabled: Boolean;
         
             procedure PrepareSpecialUserPerms( var user: TUserConfig; UnparsedPerms: AnsiString );
-        
-        private
+            
+            procedure InitDatabase;
             
             procedure IN_CS();
             procedure OUT_CS();
@@ -174,6 +186,9 @@ type
             { Returns the initialization configuration file path }
             function getIniFilePath(): AnsiString;
             
+            { Returns weather database support is enabled or not }
+            property databaseEnabled: Boolean read getDatabaseIsEnabled;
+            
             destructor Free();
     end;
 
@@ -222,7 +237,7 @@ begin
     ini := TIniFile.Create( IniFile );
     
     InitCriticalSection( CS );
-    
+
     logPath := logFileName;
     MFSize := FileSystemMaxFileSize;
     
@@ -367,6 +382,18 @@ begin
     
     OriginsList.Destroy;
     
+    InitDatabase;
+    
+    if DB_Enabled <> getDatabaseIsEnabled then
+    begin
+        
+        // If we raise an exception @ this point, an invalid pointer error
+        // is thrown ( by the library of mysql? ), so we prefere to force
+        // quit @this point
+        Console.Error( 'SockFTPD will now quit...' );
+        halt(78);
+        
+    end;
     
 end;
 
@@ -377,6 +404,11 @@ begin
     setLength( users, 0 );
     
     DoneCriticalSection( CS );
+
+    if DB_Enabled then
+    begin
+        mysql_close( DB_Sock );
+    end;
 
 end;
 
@@ -1432,6 +1464,66 @@ begin
 
 end;
 
+function TSockFTPDManager.GetDatabaseIsEnabled(): Boolean;
+var setting: String;
+begin
+
+    setting := LowerCase( ini.readString( 'database', 'enabled', 'no' ) );
+
+    if setting = 'yes' then
+        result := true
+    else
+        result := false;
+
+end;
+
+procedure TSockFTPDManager.InitDatabase;
+var
+    sHost: String;
+    sUser: String;
+    sPass: String;
+    sName: String;
+begin
+
+    DB_Enabled := GetDatabaseIsEnabled;
+    
+    if DB_Enabled = false then
+        exit;
+    
+    DB_Enabled := false;
+    
+    sHost := Ini.ReadString( 'database', 'hostname', 'localhost' );
+    sUser := Ini.ReadString( 'database', 'user', 'root' );
+    sPass := Ini.ReadString( 'database', 'password', '' );
+    sName := Ini.ReadString( 'database', 'database', 'sockftpd' );
+    
+    // Connect to database
+    Console.Log( 'USING DATABASE: mysql://' + sUser + '@' + sHost + '/' + sName );
+    
+    DB_Host := PChar( sHost );
+    DB_User := PChar( sUser );
+    DB_Pass := PChar( sPass );
+    DB_Name := PChar( sName );
+    
+    mysql_init( PMySQL( @DB_Res ) );
+    
+    DB_Sock := mysql_real_connect( PMySQL( @DB_Res ), DB_Host, DB_User, DB_Pass, nil, 3306, nil, 0 );
+    
+    if DB_Sock = nil then
+    begin
+        Console.error( 'Failed to connect to database: ' + mysql_error( @DB_Res ) );
+        exit;
+    end;
+    
+    if mysql_select_db( DB_Sock, DB_Name ) < 0 then
+    begin
+        Console.error( 'Failed to select database: ' + mysql_error( DB_Sock ) );
+        exit;
+    end;
+
+    DB_Enabled := TRUE;
+end;
+
 constructor TSockFTPDManagerException.Create( exceptionCode: LongInt; msg: AnsiString );
 begin
     code := exceptionCode;
@@ -1463,6 +1555,8 @@ initialization
 finalization
 
     if ISockFTPDManagerLoaded then
+    begin
         ISockFTPDManager.Free;
+    end;
 
 end.
