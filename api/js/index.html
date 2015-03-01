@@ -34,12 +34,38 @@
             
             uploader.bindTo( document.getElementById( 'uploader' ) );
             
+            function str_pad( s, len ) {
+                var out = String(s || '');
+                while ( out.length < len ) {
+                    out = out + ' ';
+                }
+                return out;
+            }
+            
             document.getElementById( 'list' ).addEventListener( 'click', function() {
             
-                uploader.ls( document.getElementById( 'path' ).value, function( files ) {
-                    console.log( 'LS: ', files );
+                var path = document.getElementById( 'path' ).value;
+            
+                uploader.ls( path, function( files ) {
+                
+                    uploader.log( 'LS', path );
+                    uploader.log( 'NAME|OWNER|SIZE|TIME|MIME|URL' );
+                    
+                    for ( var i=0, len = files.length; i<len; i++ ) {
+                        
+                        if ( files[i].type = 1 /* FOLDER */ ) {
+                            
+                            uploader.log( str_pad( files[i].name, 30 ), '[dir]' );
+                            
+                        } else {
+                            
+                            uploader.log( str_pad( files[i].name, 30 ), '[file] ', files[i].owner + '|' + files[i].size + '|' + files[i].time + '|' + files[i].mime + '|' + files[i].url );
+                            
+                        }
+                        
+                    }
                 }, function( reason ) {
-                    console.error('LS Failed: ' + reason );
+                    uploader.error('LS Failed: ' + reason );
                 } );
             
             }, false );

@@ -61,6 +61,7 @@ type
         owner: AnsiString;
         url  : AnsiString;
         size : Int64;
+        time : LongInt;
     End;
     
     TFS_Result = Array of TFS_Entry;
@@ -150,6 +151,9 @@ type
             property LoggingLevel: AnsiString read getLoggingLevel;
             { [daemon].logfile }
             property LogFileName: AnsiString read getLogFileName;
+            { [database].enabled. - Returns weather database support is enabled or not }
+            property databaseEnabled: Boolean read getDatabaseIsEnabled;
+            
             
             { API METHODS }
             
@@ -201,8 +205,12 @@ type
             { Returns the initialization configuration file path }
             function getIniFilePath(): AnsiString;
             
-            { Returns weather database support is enabled or not }
-            property databaseEnabled: Boolean read getDatabaseIsEnabled;
+            { Returns a list with files based on a filter, from Database.
+              If Database support is not enabled, returns an empty list.
+
+              @types: an array containing mysql mime type "LIKE" expressions.
+            }
+            function find( types: TStrArray; Owner: AnsiString; const offset: LongInt = 0; const limit: Longint = 1000 ): TFS_Result;
             
             destructor Free();
     end;
@@ -1580,6 +1588,114 @@ begin
     
 end;
 
+function TSockFTPDManager.find( types: TStrArray; Owner: AnsiString; const offset: LongInt = 0; const limit: Longint = 1000 ): TFS_Result;
+var Query: AnsiString;
+    I: LongInt;
+    Len: LongInt;
+    recbuff: PMYSQL_RES;
+    rowbuf : MYSQL_ROW;
+    rows, row: LongInt;
+    qresult: Longint;
+begin
+
+    SetLength( Result, 0 );
+    
+    if DB_Enabled = false then
+        exit;
+    
+    Query := 'SELECT `name`, `type` AS `mime`, `user`, `url`, `size`, UNIX_TIMESTAMP(`date`) AS `time` FROM files WHERE ';
+    
+    Len := Length( Types );
+    
+    if Len > 0 then
+    begin
+        
+        Query := Query + '(';
+        
+        for i := 0 to Len - 1 do
+        begin
+            
+            Query := Query + ' type LIKE ' + json_encode( types[i] );
+            
+            if i < len - 1 then
+                Query := Query + ' or ';
+            
+        end;
+        
+        Query := Query + ') AND ';
+        
+    end;
+    
+    if not UserCanReadOutsideHome( Owner ) then
+        Query := Query + '( user = ' + json_encode( Owner ) + ')'
+    else
+        Query := Query + ' TRUE ';
+    
+    Query := Query + ' ORDER BY `date` DESC LIMIT ' + IntToStr( Offset ) + ',' + IntToStr( limit ) + ';';
+    
+    try
+    
+        if mysql_ping( DB_Sock ) < 0 then
+        begin
+            Raise Exception.Create( 'E_DB_GONE' );
+        end;
+    
+        if ( mysql_query( DB_Sock, PChar( Query ) ) < 0 ) then
+        begin
+            Raise Exception.Create( 'E_DB_ERROR' );
+        end;
+    
+        recbuff := mysql_store_result( DB_Sock );
+    
+        if recbuff = nil then
+            exit;
+    
+        rows := mysql_num_rows( recbuff );
+        row  := 0;
+        
+        setLength( result, rows );
+
+        if ( rows > 0 ) then
+        begin
+        
+            rowbuf := mysql_fetch_row( recbuff );
+
+            while ( rowbuf <> nil ) do
+            begin
+    
+                result[ row ].name := rowbuf[0];
+                result[ row ].ftype:= 0;
+                result[ row ].mime := rowbuf[1];
+                result[ row ].owner := rowbuf[2];
+                result[ row ].url  := rowbuf[3];
+                result[ row ].size := StrToInt( rowbuf[4] );
+                result[ row ].time := StrToInt( rowbuf[5] );
+        
+                rowbuf := mysql_fetch_row( recbuff );
+                
+                row := row + 1;
+            end;
+        
+        end;
+    
+        if recbuff <> nil then
+        begin
+            mysql_free_result( recbuff );
+        end;
+    
+    except
+    
+        On E: Exception Do
+        begin
+        
+            Console.Error( 'Exception: ', E.Message );
+            raise;
+        
+        end;
+    
+    end;
+
+end;
 
 constructor TSockFTPDManagerException.Create( exceptionCode: LongInt; msg: AnsiString );
 begin

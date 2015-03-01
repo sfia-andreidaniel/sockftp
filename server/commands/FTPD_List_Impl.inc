@@ -10,6 +10,8 @@
         JOut: AnsiString;
         I: LongInt;
         
+        Query: TStrArray;
+        
     begin
         Name := 'LIST';
 
@@ -38,6 +40,10 @@
                 Count := _Args.get('data').get('length', 0);
             end else
                 Count := 1000;
+            
+            Console.Log( 'Session #' + IntToStr( _Session.ID ) + ' [' + 
+                _Session.IP + '] : LIST "' + _Args.get('data').get('path', '' ) + 
+                '", LIMIT ' + IntToStr( offset ) + ',' + IntToStr( count ) );
             
             try 
             
@@ -86,7 +92,77 @@
                     
                 end else
                 begin
+                    
                     SetLength( Out, 0 );
+                    SetLength( Query, 0 );
+                    
+                    Path := LowerCase( Path );
+                    
+                    if ( path = 'my pictures' ) or ( path = '/my pictures' ) or ( path = 'my pictures/' ) or ( path = '/my pictures/' ) then
+                    begin
+                        
+                        SetLength( Query, 2 );
+                        
+                        Query[0] := 'image';
+                        Query[1] := 'image/%';
+                        
+                        Out := ISockFTPDManager.find( Query, _Session.CurrentUser, Offset, Count );
+                        
+                    end else
+                    if ( path = 'my music' ) or ( path = '/my music' ) or ( path = 'my music/' ) or ( path = '/my music/' ) then
+                    begin
+
+                        SetLength( Query, 2 );
+                        
+                        Query[0] := 'audio';
+                        Query[1] := 'audio/%';
+
+                        Out := ISockFTPDManager.find( Query, _Session.CurrentUser, Offset, Count );
+                    
+                    end else
+                    if ( path = 'my videos' ) or ( path = '/my videos' ) or ( path = 'my videos/' ) or ( path = '/my videos/' ) then
+                    begin
+                    
+                        SetLength( Query, 2 );
+                        
+                        Query[0] := 'video';
+                        Query[1] := 'video/%';
+
+                        Out := ISockFTPDManager.find( Query, _Session.CurrentUser, Offset, Count );
+                    
+                    end else
+                    if ( path = 'my documents' ) or ( path = '/my documents' ) or ( path = 'my documents/' ) or ( path = '/my documents/' ) then
+                    begin
+
+                        SetLength( Query, 7 );
+                        
+                        Query[0] := 'application/msword';
+                        Query[1] := 'application/msword.%';
+                        Query[2] := 'application/vnd.openxmlformats-officedocument.%';
+                        Query[3] := 'application/vnd.ms-excel';
+                        Query[4] := 'application/vnd.ms-excel.%';
+                        Query[5] := 'application/vnd.ms-powerpoint';
+                        Query[6] := 'application/vnd.ms-powerpoint.%';
+
+                        Out := ISockFTPDManager.find( Query, _Session.CurrentUser, Offset, Count );
+                    
+                    end else
+                    if ( path = 'my files' ) or ( path = '/my files' ) or ( path = 'my files/' ) or ( path = '/my files/' ) then
+                    begin
+                    
+                        SetLength( Query, 1 );
+                        
+                        Query[0] := '%';
+
+                        Out := ISockFTPDManager.find( Query, _Session.CurrentUser, Offset, Count );
+                    
+                    end else
+                    begin
+                    
+                        Raise Exception.Create( 'E_PATH_NOT_FOUND' );
+                    
+                    end;
+                    
                 end;
                 
                 if Length( Out ) > Count then
@@ -100,7 +176,8 @@
                 if ( Count > 0 ) then
                 begin
                 
-                    for I := 0 To Count - 1 Do begin
+                    for I := 0 To Count - 1 Do
+                    begin
                         JOut := JOut + Encode_FSEntry( Out[i] );
                         
                         if i < (count - 1) then jout := jout + ',';
@@ -165,6 +242,6 @@
             result := result + '1,"mime":"folder"}';
         end else
         begin
-            result := result + '0,"mime":' + json_encode( F.mime ) + ',"url":' + json_encode( F.Url ) + ',"size":' + IntToStr(F.Size )+',"owner":'+json_encode(F.Owner)+'}';
+            result := result + '0,"mime":' + json_encode( F.mime ) + ',"url":' + json_encode( F.Url ) + ',"size":' + IntToStr(F.Size )+',"owner":'+json_encode(F.Owner)+',"time":'+IntToStr(F.Time)+'}';
         end;
     End;

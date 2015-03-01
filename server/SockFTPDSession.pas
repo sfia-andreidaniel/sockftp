@@ -8,6 +8,7 @@ interface uses
     SysUtils,
     IdGlobal,
     StrUtils,
+    StringsLib,
     WebSocketUtils,
     WebSocketSession,
     JSON,
