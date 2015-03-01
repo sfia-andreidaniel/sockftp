@@ -105,9 +105,9 @@ Begin
         
     end;
 
-    // LOGIN
     // {"cmd":"login","data":{"user":"andrei","password":"12345"},"id":2}
     // {"cmd":"put","data":{"name":"debug.log","length":242,"type":"application/octet-stream"},"id":3}
+    // {"cmd":"ls","data":{"path":"/","offset":0,"length":1000},"id":1}
     
     if ( Binary ) then
     begin
@@ -167,6 +167,12 @@ Begin
                         
                             CurrentCommand := FTPD_PUT.Create( self, packet );
                         
+                        end else
+                        if cmd = 'ls' then
+                        begin
+                            
+                            CurrentCommand := FTPD_LIST.Create( self, packet );
+                            
                         end else
                         begin
                             

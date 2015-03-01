@@ -230,11 +230,29 @@
         begin
             
             Console.Log( 'Session #' + IntToStr( Session.ID ) + ' [' + Session.IP + '] STORE "' + FileName + '" AS "' + FS.Local + '" ( Length =', FileLength, ', Mime = "' + FileType + '" )' );
+            
+            try
+
+                ISockFTPDManager.DB_SaveFile( FS );
+
+                Session.SendText( '{"id": ' + IntToStr( CommandId ) + ', "ok": true, "file": ' 
+                    + json_encode( 
+                        ISockFTPDManager.PrepareString( ISockFTPDManager.WebServerFileFormat, Fs.User, Fs.name )
+                    ) + ' }' );
+            
+            except
                 
-            Session.SendText( '{"id": ' + IntToStr( CommandId ) + ', "ok": true, "file": ' 
-                + json_encode( 
-                    ISockFTPDManager.PrepareString( ISockFTPDManager.WebServerFileFormat, Fs.User, Fs.name )
-                ) + ' }' );
+                On E: Exception Do
+                Begin
+                
+                    ISockFTPDManager.DeleteFile( FS );
+                    
+                    Session.SendText( '{"id": ' + IntToStr( CommandId ) + ', "ok": false, "error": "ERR_DATABASE"}' );
+                
+                End;
+                
+            end;
+            
             
         end;
         

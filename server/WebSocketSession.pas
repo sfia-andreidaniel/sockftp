@@ -422,6 +422,7 @@ begin
         
         if ( BufferOut <> '' ) and ( isActive and not disconnectedByClient and not disconnectedByServer ) then
         begin
+            // writeln( 'Send buff: ' + BufferOut );
             // writeln( 'Send ' + IntToStr( Length( BufferOut ) ) );
             // we have data in the output buffer
             Flush;

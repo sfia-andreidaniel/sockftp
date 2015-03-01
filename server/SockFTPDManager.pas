@@ -10,7 +10,8 @@ interface uses
     StringsLib,
     AppUtils,
     MIME,
-    mysql50;
+    mysql50,
+    JSON;
 
 const ERR_SM_FAILED_USER_PREPARATION = 1; // Failed to prepare a user
       ERR_SM_FAILED_WRITE_QUOTA_FILE = 2; // Failed to open quota file for writing
@@ -52,7 +53,18 @@ type
         illegal: Boolean;
         
     end;
+
+    TFS_Entry = Record
+        name : AnsiString;
+        ftype: Byte; // 0 -> File, 1 -> Folder
+        mime : AnsiString;
+        owner: AnsiString;
+        url  : AnsiString;
+        size : Int64;
+    End;
     
+    TFS_Result = Array of TFS_Entry;
+
     TUserConfigList = Array of TUserConfig;
     
     TSockFTPDManagerException = class( Exception )
@@ -177,6 +189,9 @@ type
             { Creates a file for a user with Size 0, and Allocates Size bytes in user quota }
             function  CreateFile( FileName: String; User: String; Size: Int64 ): TFileStruct;
             
+            { Inserts a file structure in database (If database is supported, otherwise don't do anything) }
+            procedure DB_SaveFile( struct: TFileStruct );
+            
             { Deletes the file of a user. Quota is updated automatically }
             procedure DeleteFile( F: TFileStruct );
             
@@ -247,6 +262,19 @@ begin
     Console.setLoggingLevel( LoggingLevel );
     
     Console.Notice( 'Config file loaded from "' + Console.Color( IniFile, FG_WARNING_COLOR ) + '"' );
+    
+    InitDatabase;
+    
+    if DB_Enabled <> getDatabaseIsEnabled then
+    begin
+        
+        // If we raise an exception @ this point, an invalid pointer error
+        // is thrown ( by the library of mysql? ), so we prefere to force
+        // quit @this point
+        Console.Error( 'SockFTPD will now quit...' );
+        halt(78);
+        
+    end;
     
     ifnames := FileSystemIllegalFileNames;
     
@@ -381,20 +409,6 @@ begin
     end;
     
     OriginsList.Destroy;
-    
-    InitDatabase;
-    
-    if DB_Enabled <> getDatabaseIsEnabled then
-    begin
-        
-        // If we raise an exception @ this point, an invalid pointer error
-        // is thrown ( by the library of mysql? ), so we prefere to force
-        // quit @this point
-        Console.Error( 'SockFTPD will now quit...' );
-        halt(78);
-        
-    end;
-    
 end;
 
 destructor TSockFTPDManager.Free();
@@ -875,7 +889,15 @@ begin
     begin
         
         if ( Name[i] = '.' ) then
-            dot := True
+        begin
+            if dot = True then
+            begin
+                NamePart := NamePart + '.' + ExtPart;
+                ExtPart := '';
+            end else
+                dot := True;
+        end
+        
         else begin
             
             case Name[i] of
@@ -1498,7 +1520,7 @@ begin
     sName := Ini.ReadString( 'database', 'database', 'sockftpd' );
     
     // Connect to database
-    Console.Log( 'USING DATABASE: mysql://' + sUser + '@' + sHost + '/' + sName );
+    Console.Log( 'Database:', Console.Color( 'mysql://' + sUser + '@' + sHost + '/' + sName, FG_LOG_COLOR ) );
     
     DB_Host := PChar( sHost );
     DB_User := PChar( sUser );
@@ -1523,6 +1545,41 @@ begin
 
     DB_Enabled := TRUE;
 end;
+
+procedure TSockFTPDManager.DB_SaveFile( struct: TFileStruct );
+var query: PChar;
+begin
+    
+    if not DB_Enabled then
+        exit;
+    
+    if mysql_ping( DB_Sock ) < 0 then
+    begin
+        
+        Raise Exception.Create( 'Database gone' );
+        
+    end;
+    
+    query := PChar( 
+                'INSERT INTO files ( name, type, url, user, size ) VALUES ( ' +
+                    json_encode( struct.name ) + ', ' +
+                    json_encode( mime_type( struct.name ) ) + ', ' +
+                    json_encode( struct.remote ) + ', ' +
+                    json_encode( struct.user ) + ', ' +
+                    intToStr( struct.size ) +
+                ');'
+            );
+    
+    if mysql_query( DB_Sock, query ) < 0 then
+    begin
+        
+        raise Exception.Create( 'Failed to save file "' + struct.name + '" in database: ' +
+            mysql_error( DB_Sock ) );
+        
+    end;
+    
+end;
+
 
 constructor TSockFTPDManagerException.Create( exceptionCode: LongInt; msg: AnsiString );
 begin

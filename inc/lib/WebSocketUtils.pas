@@ -72,9 +72,21 @@ function TWebSocket13Frame_Decode    ( var MemBuffer: AnsiString ): TWebSocket13
 
 implementation
 
-uses cHash, base64;
+uses cHash, base64, sysutils;
 
 const GLOBAL_UNIQUE_IDENTIFIER = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
+
+function hexToStr(aDec: integer; aLength: integer): string;
+var tmp: string;
+    i: integer;
+begin
+  tmp := IntToHex(aDec, aLength);
+  result := '';
+  for i := 1 to (Length(tmp)+1) div 2 do
+  begin
+    result := result + ansichar(StrToInt('$'+Copy(tmp, i * 2 - 1, 2)));
+  end;
+end;
 
 
 constructor TWebSocket13Frame.Create( );
@@ -185,8 +197,8 @@ var _FIN : Byte;
     firstByte: Byte;
     secondByte: Byte;
     encoded: AnsiString;
-    bShort: TByte16Buff;
-    bMed  : TByte32Buff;
+//    bShort: TByte16Buff;
+//    bMed  : TByte32Buff;
     bLong : TByte64Buff;
     eMask : AnsiString;
 begin
@@ -195,7 +207,7 @@ begin
     
     if payloadLength > FRAME_FRAGMENT_AT then
     begin
-        
+        writeln( 'ENCODE_WITH_FRAGMENTATION!' );
         result := EncodeWithFragmentation;
         exit;
         
@@ -221,30 +233,35 @@ begin
     end else
     if payloadLength <= 65535 then
     begin
+        
         secondByte := 126;
         secondByte := secondByte + _Mask * 128;
+        
         encoded := encoded + chr( secondByte );
         
-        bShort := TByte16Buff( Word( payloadLength ) );
+        //bShort := TByte16Buff( Word( payloadLength ) );
         
-        encoded := encoded + chr( bShort[0] ) + chr( bShort[1] );
+        //encoded := encoded + chr( bShort[0] ) + chr( bShort[1] );
+        
+        encoded := encoded + hexToStr( payloadLength, 4 );
     end else
     begin
         secondByte := 127;
         secondByte := secondByte + _Mask * 128;
         
-        encoded := encoded + chr( secondByte );
+        encoded := encoded + chr( secondByte ) + hexToStr( payloadLength, 16 );
         
-        bMed := TByte32Buff( payloadLength );
         
-        encoded := encoded + chr(0);
-        encoded := encoded + chr(0);
-        encoded := encoded + chr(0);
-        encoded := encoded + chr(0);
-        encoded := encoded + chr( bMed[0] );
-        encoded := encoded + chr( bMed[1] );
-        encoded := encoded + chr( bMed[2] );
-        encoded := encoded + chr( bMed[3] );
+        //bMed := TByte32Buff( payloadLength );
+        
+        //encoded := encoded + chr(0);
+        //encoded := encoded + chr(0);
+        //encoded := encoded + chr(0);
+        //encoded := encoded + chr(0);
+        //encoded := encoded + chr( bMed[0] );
+        //encoded := encoded + chr( bMed[1] );
+        //encoded := encoded + chr( bMed[2] );
+        //encoded := encoded + chr( bMed[3] );
     end;
     
     if Mask then

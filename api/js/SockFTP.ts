@@ -116,6 +116,10 @@ class SockFTP extends Events {
 
 	}
 	
+	get who(): string {
+		return this.settings.user || '';
+	}
+
 	public connect(): SockFTP {
 
 		this.neverAttemptedToConnect = false;
@@ -458,6 +462,21 @@ class SockFTP extends Events {
 			}
 
 		}
+
+	}
+
+	public ls(
+		path: string,
+		success: ( files: FS_Entry[] ) => void = null,
+		error: ( reason: string ) => void = null
+	): void {
+
+		this.addCommand( new SockFTP_Command_Ls (
+			this,
+			path,
+			success,
+			error
+		) );
 
 	}
 

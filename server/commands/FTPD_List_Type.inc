@@ -1,4 +1,4 @@
-
+    
     {DECLARATION OF THE "LIST" COMMAND OF THE SOCKFTPD DAEMON}
     
     FTPD_LIST = class( TSockFTPDCommand )
@@ -10,6 +10,8 @@
             procedure   OnMessage( Data: AnsiString; Binary: Boolean ); override;
 
             destructor  Free; override;
+            
+            function    Encode_FSEntry( F: TFS_Entry ): AnsiString;
         
     End;
     

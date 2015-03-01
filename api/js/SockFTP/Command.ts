@@ -3,7 +3,7 @@ class SockFTP_Command extends Events {
 	public client              : SockFTP;
 	public commandID           : number;
 
-	public onSuccess           : ( ) => void = null;
+	public onSuccess           : ( ...result: any[] ) => void = null;
 	public onError             : ( reason: string ) => void = null;
 
 	public callbacksTriggered  : boolean = false;
@@ -76,13 +76,13 @@ class SockFTP_Command extends Events {
 
 	}
 
-	public succeed() {
+	public succeed( ...result: any[] ) {
 
 		if ( !this.callbacksTriggered ) {
 
 			try {
 
-				this.onSuccess();
+				this.onSuccess.apply( this.client, result );
 
 			} catch ( E ) {
 

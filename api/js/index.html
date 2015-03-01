@@ -34,6 +34,16 @@
             
             uploader.bindTo( document.getElementById( 'uploader' ) );
             
+            document.getElementById( 'list' ).addEventListener( 'click', function() {
+            
+                uploader.ls( document.getElementById( 'path' ).value, function( files ) {
+                    console.log( 'LS: ', files );
+                }, function( reason ) {
+                    console.error('LS Failed: ' + reason );
+                } );
+            
+            }, false );
+            
         }, true );
         
     </script>
@@ -46,7 +56,11 @@
     
     <br />
     <br />
-    <textarea id="console" disabled cols=80 rows=25></textarea>
+    <textarea id="console" disabled cols=80 rows=25></textarea><br /><br />
+
+    <label>List: <input id="path" value="/" />
+        <button id="list">Go</button>
+    </label>
    
 </body>
 </html>

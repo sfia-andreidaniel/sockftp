@@ -8,6 +8,11 @@ var ConnectionState;
     ConnectionState[ConnectionState["CLOSED"] = 0] = "CLOSED";
     ConnectionState[ConnectionState["OPENED"] = 1] = "OPENED";
 })(ConnectionState || (ConnectionState = {}));
+var FSItem;
+(function (FSItem) {
+    FSItem[FSItem["FILE"] = 0] = "FILE";
+    FSItem[FSItem["FOLDER"] = 1] = "FOLDER";
+})(FSItem || (FSItem = {}));
 var Events = (function () {
     function Events() {
         this.$EVENTS_ENABLED = true;
@@ -134,6 +139,13 @@ var SockFTP = (function (_super) {
             });
         })(this);
     }
+    Object.defineProperty(SockFTP.prototype, "who", {
+        get: function () {
+            return this.settings.user || '';
+        },
+        enumerable: true,
+        configurable: true
+    });
     SockFTP.prototype.connect = function () {
         this.neverAttemptedToConnect = false;
         this.offlineAwareSeconds = 0;
@@ -385,6 +397,11 @@ var SockFTP = (function (_super) {
             }
         }
     };
+    SockFTP.prototype.ls = function (path, success, error) {
+        if (success === void 0) { success = null; }
+        if (error === void 0) { error = null; }
+        this.addCommand(new SockFTP_Command_Ls(this, path, success, error));
+    };
     SockFTP.prototype.put = function (f, success, error, progress) {
         if (success === void 0) { success = null; }
         if (error === void 0) { error = null; }
@@ -572,9 +589,13 @@ var SockFTP_Command = (function (_super) {
         }
     };
     SockFTP_Command.prototype.succeed = function () {
+        var result = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            result[_i - 0] = arguments[_i];
+        }
         if (!this.callbacksTriggered) {
             try {
-                this.onSuccess();
+                this.onSuccess.apply(this.client, result);
             }
             catch (E) {
                 this.client.error('COMMAND: ' + this.name + ': Exception during succeed(): ' + E);
@@ -786,9 +807,43 @@ var SockFTP_Command_Put = (function (_super) {
     };
     return SockFTP_Command_Put;
 })(SockFTP_Command);
+var SockFTP_Command_Ls = (function (_super) {
+    __extends(SockFTP_Command_Ls, _super);
+    function SockFTP_Command_Ls(client, Path, success, error) {
+        _super.call(this, client);
+        this.name = 'ls';
+        this.path = Path;
+        this.onSuccess = success;
+        this.onError = error;
+    }
+    SockFTP_Command_Ls.prototype.init = function () {
+        _super.prototype.init.call(this);
+        this.client.log('Fetching files list from server...');
+        this.sendText({
+            "path": this.path,
+            "offset": 0,
+            "length": 1000
+        });
+    };
+    SockFTP_Command_Ls.prototype.onMessage = function (msg) {
+        console.warn('msg: ', msg);
+        _super.prototype.onMessage.call(this, msg);
+        if (msg && msg.ok) {
+            this.succeed(msg.data);
+        }
+        else if (msg && msg.error) {
+            this.fail(msg.error);
+        }
+        else {
+            this.fail("E_BAD_MESSAGE");
+        }
+    };
+    return SockFTP_Command_Ls;
+})(SockFTP_Command);
 ///<reference path="types.ts" />
 ///<reference path="Events.ts" />
 ///<reference path="SockFTP.ts" />
 ///<reference path="./SockFTP/Command.ts" />
 ///<reference path="./SockFTP/Command/Login.ts" />
-///<reference path="./SockFTP/Command/Put.ts" /> 
+///<reference path="./SockFTP/Command/Put.ts" />
+///<reference path="./SockFTP/Command/Ls.ts" /> 
