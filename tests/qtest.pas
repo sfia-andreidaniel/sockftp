@@ -51,6 +51,8 @@ mysql_real_connect(PMysql(@qmysql),'127.0.0.1','root','traktopel',nil,3306,nil,0
     halt (1);
     end;
 
+    mysql_ping( sock );
+
   writeln ('Executing query : ',Query,'...');
     if (mysql_query(sock,Query) < 0) then
       begin
@@ -60,6 +62,38 @@ mysql_real_connect(PMysql(@qmysql),'127.0.0.1','root','traktopel',nil,3306,nil,0
       end;
 
   recbuf := mysql_store_result(sock);
+  if RecBuf=Nil then
+    begin
+    Writeln ('Query returned nil result.');
+    mysql_close(sock);
+    halt (1);
+    end;
+  Writeln ('Number of records returned  : ',mysql_num_rows (recbuf));
+  Writeln ('Number of fields per record : ',mysql_num_fields(recbuf));
+
+  rowbuf := mysql_fetch_row(recbuf);
+  while (rowbuf <>nil) do
+       begin
+       Write  ('(Id: ', rowbuf[0]);
+       Write  (', Name: ', rowbuf[1]);
+       Writeln(', Email : ', rowbuf[2],')');
+       rowbuf := mysql_fetch_row(recbuf);
+       end;
+  Writeln ('Freeing memory occupied by result set...');
+  mysql_free_result (recbuf);
+
+  mysql_ping( sock );
+
+  writeln ('Executing query : ',Query,'...');
+    if (mysql_query(sock,Query) < 0) then
+      begin
+      Writeln (stderr,'Query failed ');
+      writeln (stderr,mysql_error(sock));
+      Halt(1);
+      end;
+
+  recbuf := mysql_store_result(sock);
+
   if RecBuf=Nil then
     begin
     Writeln ('Query returned nil result.');

@@ -1592,16 +1592,22 @@ function TSockFTPDManager.find( types: TStrArray; Owner: AnsiString; const offse
 var Query: AnsiString;
     I: LongInt;
     Len: LongInt;
-    recbuff: PMYSQL_RES;
+    recbuf : PMYSQL_RES;
     rowbuf : MYSQL_ROW;
     rows, row: LongInt;
     qresult: Longint;
+    PQuery: PChar;
 begin
+
+    IN_CS;
 
     SetLength( Result, 0 );
     
     if DB_Enabled = false then
+    begin
+        OUT_CS;
         exit;
+    end;
     
     Query := 'SELECT `name`, `type` AS `mime`, `user`, `url`, `size`, UNIX_TIMESTAMP(`date`) AS `time` FROM files WHERE ';
     
@@ -1635,22 +1641,34 @@ begin
     
     try
     
+        writeln( 'ENTERED TRY BLOCK' );
+    
         if mysql_ping( DB_Sock ) < 0 then
         begin
+            Console.Error( mysql_error( DB_Sock ) );
             Raise Exception.Create( 'E_DB_GONE' );
         end;
     
-        if ( mysql_query( DB_Sock, PChar( Query ) ) < 0 ) then
+        writeln( 'DONE MYSQL PING' );
+    
+        PQuery := PChar( Query );
+    
+        if ( mysql_query( DB_Sock, PQuery ) < 0 ) then
         begin
+            Console.Error( mysql_error( DB_Sock ) );
             Raise Exception.Create( 'E_DB_ERROR' );
         end;
     
-        recbuff := mysql_store_result( DB_Sock );
+        writeln( 'DONE MYSQL QUERY' );
     
-        if recbuff = nil then
-            exit;
+        recbuf := mysql_store_result( DB_Sock );
     
-        rows := mysql_num_rows( recbuff );
+        writeln( 'DONE MYSQL STORE RESULT' );
+    
+        rows := mysql_num_rows( recbuf );
+        
+        mysql_num_fields( recbuf );
+        
         row  := 0;
         
         setLength( result, rows );
@@ -1658,9 +1676,9 @@ begin
         if ( rows > 0 ) then
         begin
         
-            rowbuf := mysql_fetch_row( recbuff );
+            rowbuf := mysql_fetch_row( recbuf );
 
-            while ( rowbuf <> nil ) do
+            while rowbuf <> nil do
             begin
     
                 result[ row ].name := rowbuf[0];
@@ -1671,22 +1689,23 @@ begin
                 result[ row ].size := StrToInt( rowbuf[4] );
                 result[ row ].time := StrToInt( rowbuf[5] );
         
-                rowbuf := mysql_fetch_row( recbuff );
+                rowbuf := mysql_fetch_row( recbuf );
                 
                 row := row + 1;
             end;
         
         end;
     
-        if recbuff <> nil then
-        begin
-            mysql_free_result( recbuff );
-        end;
+        mysql_free_result( recbuf );
+        
+        writeln( 'RESULT DISPOSED' );
     
     except
     
         On E: Exception Do
         begin
+        
+            OUT_CS;
         
             Console.Error( 'Exception: ', E.Message );
             raise;
@@ -1694,6 +1713,8 @@ begin
         end;
     
     end;
+    
+    OUT_CS;
 
 end;
 
