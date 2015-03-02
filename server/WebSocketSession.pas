@@ -136,13 +136,13 @@ end;
 { After Handshake }
 procedure TWebSocketSession.OnConnect;
 begin
-    Console.Log( 'Session #' + IntToStr(ID) + ' connected ( IP: "' + IP + '", Origin: "' + Origin + '", Protocol: "' + Protocol + '" )' );
+    Console.Notice( 'Session #' + IntToStr(ID) + ' connected ( IP: "' + IP + '", Origin: "' + Origin + '", Protocol: "' + Protocol + '" )' );
 end;
 
 { OnDisconnect }
 procedure TWebSocketSession.OnDisconnect;
 begin
-    Console.Log( 'Session #', ID, ' disconnected' );
+    Console.Notice( 'Session #' + IntToStr(ID) + ' [' + IP + '] : disconnected' );
 end;
 
 { Sends Data As Text }

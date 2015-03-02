@@ -10,8 +10,11 @@ interface uses
     StringsLib,
     AppUtils,
     MIME,
-    mysql50,
-    JSON;
+    JSON
+    {database support},
+    sqldb, pqconnection, { IBConnnection, ODBCConn, }
+    mysql50conn, mysql55conn    
+    {end of database support};
 
 const ERR_SM_FAILED_USER_PREPARATION = 1; // Failed to prepare a user
       ERR_SM_FAILED_WRITE_QUOTA_FILE = 2; // Failed to open quota file for writing
@@ -88,14 +91,7 @@ type
             _origins: TStrArray;
             
             DB_Enabled: Boolean;
-            
-            DB_host : PChar;
-            DB_user : PChar;
-            DB_pass : PChar;
-            DB_name : PChar;
-            
-            DB_res  : st_mysql;
-            DB_sock : PMYSQL;
+            SQLConn: TSqlConnection;
             
             function getServerPort(): Word;
             function getServerName(): AnsiString;
@@ -429,7 +425,9 @@ begin
 
     if DB_Enabled then
     begin
-        mysql_close( DB_Sock );
+        
+        SQLConn.Free;
+        
     end;
 
 end;
@@ -1530,182 +1528,169 @@ begin
     // Connect to database
     Console.Log( 'Database:', Console.Color( 'mysql://' + sUser + '@' + sHost + '/' + sName, FG_LOG_COLOR ) );
     
-    DB_Host := PChar( sHost );
-    DB_User := PChar( sUser );
-    DB_Pass := PChar( sPass );
-    DB_Name := PChar( sName );
+    SQLConn := TMySQL55Connection.Create(nil);
     
-    mysql_init( PMySQL( @DB_Res ) );
-    
-    DB_Sock := mysql_real_connect( PMySQL( @DB_Res ), DB_Host, DB_User, DB_Pass, nil, 3306, nil, 0 );
-    
-    if DB_Sock = nil then
+    with SQLConn do
     begin
-        Console.error( 'Failed to connect to database: ' + mysql_error( @DB_Res ) );
-        exit;
-    end;
-    
-    if mysql_select_db( DB_Sock, DB_Name ) < 0 then
-    begin
-        Console.error( 'Failed to select database: ' + mysql_error( DB_Sock ) );
-        exit;
+        hostname := sHost;
+        databasename := sName;
+        username := sUser;
+        password := sPass;
+        open;
     end;
 
     DB_Enabled := TRUE;
 end;
 
 procedure TSockFTPDManager.DB_SaveFile( struct: TFileStruct );
-var query: PChar;
+var FTransaction: TSQLTransaction;
+    FQuery: TSQLQuery;
 begin
     
     if not DB_Enabled then
         exit;
     
-    if mysql_ping( DB_Sock ) < 0 then
-    begin
-        
-        Raise Exception.Create( 'Database gone' );
-        
-    end;
+    FTransaction := TSQLTransaction.Create( nil );
     
-    query := PChar( 
-                'INSERT INTO files ( name, type, url, user, size ) VALUES ( ' +
-                    json_encode( struct.name ) + ', ' +
-                    json_encode( mime_type( struct.name ) ) + ', ' +
-                    json_encode( struct.remote ) + ', ' +
-                    json_encode( struct.user ) + ', ' +
-                    intToStr( struct.size ) +
-                ');'
-            );
+    With FTransaction Do
+    Begin
+        
+        Database := SQLConn;
+        StartTransaction;
+        
+    End;
     
-    if mysql_query( DB_Sock, query ) < 0 then
-    begin
+    FQuery := TSQLQuery.Create( NIL );
+    
+    With FQuery Do
+    Begin
+        Database := SQLConn;
+        Transaction := FTransaction;
         
-        raise Exception.Create( 'Failed to save file "' + struct.name + '" in database: ' +
-            mysql_error( DB_Sock ) );
+        SQL.Clear;
+        SQL.Add( 
+            'INSERT INTO files ( name, type, url, user, size ) VALUES ( ' +
+                json_encode( struct.name ) + ', ' +
+                json_encode( mime_type( struct.name ) ) + ', ' +
+                json_encode( struct.remote ) + ', ' +
+                json_encode( struct.user ) + ', ' +
+                intToStr( struct.size ) +
+            ');'
+        );
         
-    end;
+        ExecSQL;
+        
+    End;
+    
+    FTransaction.CommitRetaining;
+    
+    FTransaction.Free;
+    FQuery.Free;
     
 end;
 
 function TSockFTPDManager.find( types: TStrArray; Owner: AnsiString; const offset: LongInt = 0; const limit: Longint = 1000 ): TFS_Result;
-var Query: AnsiString;
-    I: LongInt;
+var I: LongInt;
     Len: LongInt;
-    recbuf : PMYSQL_RES;
-    rowbuf : MYSQL_ROW;
     rows, row: LongInt;
-    qresult: Longint;
-    PQuery: PChar;
+    
+    FTransaction: TSQLTransaction;
+    FQuery: TSQLQuery;
+    
 begin
-
-    IN_CS;
 
     SetLength( Result, 0 );
     
     if DB_Enabled = false then
     begin
-        OUT_CS;
         exit;
     end;
-    
-    Query := 'SELECT `name`, `type` AS `mime`, `user`, `url`, `size`, UNIX_TIMESTAMP(`date`) AS `time` FROM files WHERE ';
-    
-    Len := Length( Types );
-    
-    if Len > 0 then
-    begin
-        
-        Query := Query + '(';
-        
-        for i := 0 to Len - 1 do
-        begin
-            
-            Query := Query + ' type LIKE ' + json_encode( types[i] );
-            
-            if i < len - 1 then
-                Query := Query + ' or ';
-            
-        end;
-        
-        Query := Query + ') AND ';
-        
-    end;
-    
-    if not UserCanReadOutsideHome( Owner ) then
-        Query := Query + '( user = ' + json_encode( Owner ) + ')'
-    else
-        Query := Query + ' TRUE ';
-    
-    Query := Query + ' ORDER BY `date` DESC LIMIT ' + IntToStr( Offset ) + ',' + IntToStr( limit ) + ';';
-    
+
     try
     
-        writeln( 'ENTERED TRY BLOCK' );
-    
-        if mysql_ping( DB_Sock ) < 0 then
-        begin
-            Console.Error( mysql_error( DB_Sock ) );
-            Raise Exception.Create( 'E_DB_GONE' );
-        end;
-    
-        writeln( 'DONE MYSQL PING' );
-    
-        PQuery := PChar( Query );
-    
-        if ( mysql_query( DB_Sock, PQuery ) < 0 ) then
-        begin
-            Console.Error( mysql_error( DB_Sock ) );
-            Raise Exception.Create( 'E_DB_ERROR' );
-        end;
-    
-        writeln( 'DONE MYSQL QUERY' );
-    
-        recbuf := mysql_store_result( DB_Sock );
-    
-        writeln( 'DONE MYSQL STORE RESULT' );
-    
-        rows := mysql_num_rows( recbuf );
-        
-        mysql_num_fields( recbuf );
-        
-        row  := 0;
-        
-        setLength( result, rows );
+        IN_CS;
 
-        if ( rows > 0 ) then
-        begin
+    try
+    
+        FTransaction := TSQLTransaction.Create( NIL );
+    
+        With FTransaction Do
+        Begin
+            Database := SQLConn;
+            StartTransaction;
+        End;
+    
+        FQuery := TSqlQuery.Create( NIL );
+        With FQuery Do Begin
         
-            rowbuf := mysql_fetch_row( recbuf );
-
-            while rowbuf <> nil do
+            Database := SQLConn;
+            Transaction := FTransaction;
+            ReadOnly := TRUE;
+        
+            SQL.Clear;
+            SQL.Add( 'SELECT `name`, `type` AS `mime`, `user`, `url`, `size`, UNIX_TIMESTAMP(`date`) AS `time` FROM files WHERE ' );
+            
+        End;
+    
+        Len := Length( Types );
+        
+        if Len > 0 then
+        begin
+            
+            FQuery.SQL.Add( '(' );
+            
+            for i := 0 to Len - 1 do
             begin
-    
-                result[ row ].name := rowbuf[0];
-                result[ row ].ftype:= 0;
-                result[ row ].mime := rowbuf[1];
-                result[ row ].owner := rowbuf[2];
-                result[ row ].url  := rowbuf[3];
-                result[ row ].size := StrToInt( rowbuf[4] );
-                result[ row ].time := StrToInt( rowbuf[5] );
-        
-                rowbuf := mysql_fetch_row( recbuf );
                 
-                row := row + 1;
+                FQuery.SQL.Add( ' type LIKE ' + json_encode( types[i] ) );
+                
+                if i < len - 1 then
+                    FQuery.SQL.Add( ' or ' );
+                
             end;
-        
+            
+            FQuery.SQL.Add( ') AND ' );
+            
         end;
-    
-        mysql_free_result( recbuf );
         
-        writeln( 'RESULT DISPOSED' );
+        if not UserCanReadOutsideHome( Owner ) then
+        begin
+            FQuery.SQL.Add( '( user = ' + json_encode( Owner ) + ')' );
+        end else
+        begin
+            FQuery.SQL.Add( ' TRUE ' );
+        end;
+        
+        FQuery.SQL.Add( ' ORDER BY `date` DESC LIMIT ' + IntToStr( Offset ) + ',' + IntToStr( limit ) + ';' );
+    
+        FQuery.Open;
+        
+        Rows := 0;
+    
+        While not FQuery.EOF do
+        Begin
+        
+            Rows := Rows + 1;
+            Row  := Rows - 1;
+            
+            SetLength( Result, Rows );
+        
+            Result[ row ].name := FQuery.FieldByName( 'name' ).AsString;
+            Result[ row ].ftype:= 0;
+            Result[ row ].mime := FQuery.FieldByName( 'mime' ).AsString;
+            Result[ row ].owner:= FQuery.FieldByName( 'user').AsString;
+            Result[ row ].url  := FQuery.FieldByName( 'url'  ).AsString;
+            Result[ row ].size := FQuery.FieldByName( 'size' ).AsLargeInt;
+            Result[ row ].time := FQuery.FieldByName( 'time' ).AsInteger;
+        
+            FQuery.Next;
+        
+        End;
     
     except
     
         On E: Exception Do
         begin
-        
-            OUT_CS;
         
             Console.Error( 'Exception: ', E.Message );
             raise;
@@ -1714,8 +1699,12 @@ begin
     
     end;
     
-    OUT_CS;
-
+    finally
+    
+        OUT_CS;
+    
+    end;
+    
 end;
 
 constructor TSockFTPDManagerException.Create( exceptionCode: LongInt; msg: AnsiString );
@@ -1728,7 +1717,7 @@ initialization
 
     ISockFTPDManagerLoaded := FALSE;
 
-    Console.log( 'Loading configuration file...' );
+    //Console.log( 'Loading configuration file...' );
 
     try
 

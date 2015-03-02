@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS `sockftpd`.`files` (
   `url` char(255) NOT NULL DEFAULT '',
   `user` char(32) NOT NULL DEFAULT '',
   `size` bigint(20) unsigned NOT NULL DEFAULT '0',
-  `date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 

@@ -76,13 +76,13 @@ end;
 procedure TWebSocketDaemon.Run;
 begin
 
-    Console.log( 'Starting' );
+    Console.Notice( 'Starting' );
 
     try
 
         S.Active := TRUE;
     
-        Console.log( 'OK. Entering ' + Console.Color( 'BIG', FG_WARNING_COLOR ) + ' loop.' );
+        Console.Notice( 'Server entered ' + Console.Color( 'BIG', FG_LOG_COLOR ) + ' loop and is ' + Console.Color( 'waiting for connections', FG_LOG_COLOR ) + '.' );
     
         while S.Active do
         begin
