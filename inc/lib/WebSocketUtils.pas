@@ -398,7 +398,7 @@ begin
     // don't continue until we have a full frame.
     if ( BuffLen < frame.payloadLength ) then
     Begin
-        Console.Notice( 'PROTOCOL: We did not continued until the frame is full (needed still ', frame.payloadLength - BuffLen, ' bytes), left membuffer to ', Length( MemBuffer ), ' assert: ', BuffLenSaved );
+        //Console.Notice( 'PROTOCOL: We did not continued until the frame is full (needed still ', frame.payloadLength - BuffLen, ' bytes), left membuffer to ', Length( MemBuffer ), ' assert: ', BuffLenSaved );
         Frame.Free;
         result := nil;
         exit;

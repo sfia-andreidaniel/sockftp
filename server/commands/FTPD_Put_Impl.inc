@@ -61,7 +61,7 @@
                 if ( FileName = '' ) then
                     raise Exception.Create( 'Illegal file name!' );
                 
-                if ( FileLength < 0 ) then
+                if ( FileLength <= 0 ) then
                     raise Exception.Create( 'Illegal file size!' );
                 
                 if ( FileType = '' ) then
