@@ -1,0 +1,744 @@
+object DlgOptions: TDlgOptions
+  Left = 619
+  Height = 525
+  Top = 164
+  Width = 606
+  Align = alClient
+  AutoSize = True
+  Caption = 'SockFTPD Settings'
+  ClientHeight = 525
+  ClientWidth = 606
+  OnCreate = FormCreate
+  LCLVersion = '1.0.10.0'
+  object MainTabs: TPageControl
+    AnchorSideLeft.Control = Owner
+    AnchorSideTop.Control = Owner
+    AnchorSideRight.Control = Owner
+    AnchorSideRight.Side = asrBottom
+    AnchorSideBottom.Control = Owner
+    AnchorSideBottom.Side = asrBottom
+    Left = 10
+    Height = 465
+    Top = 10
+    Width = 586
+    ActivePage = Tab_Service
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    BorderSpacing.Left = 10
+    BorderSpacing.Top = 10
+    BorderSpacing.Right = 10
+    BorderSpacing.Bottom = 50
+    TabIndex = 0
+    TabOrder = 0
+    OnChange = MainTabsChange
+    object Tab_Service: TTabSheet
+      Caption = 'Service'
+      ClientHeight = 434
+      ClientWidth = 582
+      object Daemon_Listen: TEdit
+        AnchorSideLeft.Control = Tab_Service
+        AnchorSideTop.Control = Tab_Service
+        AnchorSideRight.Control = Tab_Service
+        AnchorSideRight.Side = asrBottom
+        Left = 104
+        Height = 27
+        Top = 21
+        Width = 444
+        Anchors = [akTop, akLeft, akRight]
+        BorderSpacing.Left = 104
+        BorderSpacing.Top = 21
+        BorderSpacing.Right = 34
+        TabOrder = 0
+        Text = '0.0.0.0'
+      end
+      object Label_Daemon_Listen: TLabel
+        Left = 34
+        Height = 18
+        Top = 26
+        Width = 66
+        Caption = 'Interface:'
+        ParentColor = False
+      end
+      object Label_Daemon_Port: TLabel
+        Left = 65
+        Height = 18
+        Top = 65
+        Width = 35
+        Caption = 'Port:'
+        ParentColor = False
+      end
+      object Daemon_Port: TSpinEdit
+        AnchorSideLeft.Control = Tab_Service
+        AnchorSideTop.Control = Tab_Service
+        Left = 104
+        Height = 27
+        Top = 59
+        Width = 86
+        BorderSpacing.Left = 104
+        BorderSpacing.Top = 59
+        MaxValue = 65534
+        MinValue = 1
+        TabOrder = 1
+        Value = 8080
+      end
+      object Label_Daemon_Name: TLabel
+        Left = 4
+        Height = 18
+        Top = 105
+        Width = 96
+        Caption = 'Service Name:'
+        ParentColor = False
+      end
+      object Daemon_Name: TEdit
+        AnchorSideLeft.Control = Tab_Service
+        AnchorSideTop.Control = Tab_Service
+        AnchorSideRight.Control = Tab_Service
+        AnchorSideRight.Side = asrBottom
+        Left = 104
+        Height = 27
+        Top = 99
+        Width = 444
+        Anchors = [akTop, akLeft, akRight]
+        BorderSpacing.Left = 104
+        BorderSpacing.Top = 99
+        BorderSpacing.Right = 34
+        TabOrder = 2
+        Text = 'SockFTPD'
+      end
+      object Label_Daemon_Protocol: TLabel
+        Left = 13
+        Height = 18
+        Top = 145
+        Width = 87
+        Caption = 'Proto Name:'
+        ParentColor = False
+      end
+      object Daemon_Protocol: TEdit
+        AnchorSideLeft.Control = Tab_Service
+        AnchorSideTop.Control = Tab_Service
+        AnchorSideRight.Control = Tab_Service
+        AnchorSideRight.Side = asrBottom
+        Left = 104
+        Height = 27
+        Top = 139
+        Width = 444
+        Anchors = [akTop, akLeft, akRight]
+        BorderSpacing.Left = 104
+        BorderSpacing.Top = 139
+        BorderSpacing.Right = 34
+        TabOrder = 3
+        Text = 'sockftp'
+      end
+      object Daemon_Enable_Logging: TCheckBox
+        Left = 3
+        Height = 24
+        Top = 180
+        Width = 97
+        Caption = 'Log to file:'
+        OnChange = Daemon_Enable_LoggingChange
+        TabOrder = 4
+      end
+      object Daemon_Loglevel: TRadioGroup
+        AnchorSideLeft.Control = Tab_Service
+        AnchorSideTop.Control = Tab_Service
+        AnchorSideRight.Control = Tab_Service
+        AnchorSideRight.Side = asrBottom
+        AnchorSideBottom.Control = Tab_Service
+        AnchorSideBottom.Side = asrBottom
+        Left = 104
+        Height = 208
+        Top = 216
+        Width = 468
+        Anchors = [akTop, akLeft, akRight, akBottom]
+        AutoFill = True
+        BorderSpacing.Left = 104
+        BorderSpacing.Top = 216
+        BorderSpacing.Right = 10
+        BorderSpacing.Bottom = 10
+        Caption = 'What to log'
+        ChildSizing.LeftRightSpacing = 6
+        ChildSizing.TopBottomSpacing = 6
+        ChildSizing.EnlargeHorizontal = crsHomogenousChildResize
+        ChildSizing.EnlargeVertical = crsHomogenousChildResize
+        ChildSizing.ShrinkHorizontal = crsScaleChilds
+        ChildSizing.ShrinkVertical = crsScaleChilds
+        ChildSizing.Layout = cclLeftToRightThenTopToBottom
+        ChildSizing.ControlsPerLine = 1
+        ClientHeight = 189
+        ClientWidth = 464
+        Enabled = False
+        TabOrder = 5
+        object Daemon_Log_0: TRadioButton
+          Left = 6
+          Height = 36
+          Top = 6
+          Width = 452
+          Caption = '0. Everything'
+          Checked = True
+          TabOrder = 0
+          TabStop = True
+        end
+        object Daemon_Log_1: TRadioButton
+          Left = 6
+          Height = 36
+          Top = 42
+          Width = 452
+          Caption = '1. Logs, Warnings, Errors'
+          TabOrder = 1
+        end
+        object Daemon_Log_2: TRadioButton
+          Left = 6
+          Height = 36
+          Top = 78
+          Width = 452
+          Caption = '2. Warnings, Errors'
+          TabOrder = 2
+        end
+        object Daemon_Log_3: TRadioButton
+          Left = 6
+          Height = 36
+          Top = 114
+          Width = 452
+          Caption = '3. Errors'
+          TabOrder = 3
+        end
+        object Daemon_Log_4: TRadioButton
+          Left = 6
+          Height = 33
+          Top = 150
+          Width = 452
+          Caption = '4. Nothing'
+          TabOrder = 4
+        end
+      end
+      object Daemon_Log_File: TFileNameEdit
+        AnchorSideTop.Control = Tab_Service
+        Left = 104
+        Height = 27
+        Top = 178
+        Width = 444
+        FilterIndex = 0
+        HideDirectories = False
+        ButtonWidth = 23
+        NumGlyphs = 0
+        BorderSpacing.Top = 178
+        Enabled = False
+        MaxLength = 0
+        TabOrder = 6
+      end
+    end
+    object Tab_Origins: TTabSheet
+      Caption = 'Origins'
+      ClientHeight = 434
+      ClientWidth = 582
+      object Label_Origins: TLabel
+        AnchorSideLeft.Control = Tab_Origins
+        AnchorSideRight.Control = Tab_Origins
+        AnchorSideRight.Side = asrBottom
+        Left = 10
+        Height = 64
+        Top = 17
+        Width = 562
+        Anchors = [akTop, akLeft, akRight]
+        AutoSize = False
+        BorderSpacing.Left = 10
+        BorderSpacing.Right = 10
+        Caption = 'WebSocket clients are sending to server their "Origin".'#10#10'You can specify here the origins that you want to allow on your server:'
+        Font.Height = 15
+        ParentColor = False
+        ParentFont = False
+        WordWrap = True
+        OptimalFill = True
+      end
+      object Origins: TMemo
+        AnchorSideLeft.Control = Tab_Origins
+        AnchorSideTop.Control = Tab_Origins
+        AnchorSideRight.Control = Tab_Origins
+        AnchorSideRight.Side = asrBottom
+        AnchorSideBottom.Control = Tab_Origins
+        AnchorSideBottom.Side = asrBottom
+        Left = 10
+        Height = 329
+        Top = 95
+        Width = 562
+        Anchors = [akTop, akLeft, akRight, akBottom]
+        BorderSpacing.Left = 10
+        BorderSpacing.Top = 95
+        BorderSpacing.Right = 10
+        BorderSpacing.Bottom = 10
+        Lines.Strings = (
+          '*'
+        )
+        TabOrder = 0
+      end
+    end
+    object Tab_Filesystem: TTabSheet
+      Caption = 'File System'
+      ClientHeight = 434
+      ClientWidth = 582
+      object Label_FS_Description: TLabel
+        AnchorSideLeft.Control = Tab_Filesystem
+        AnchorSideTop.Control = Tab_Filesystem
+        AnchorSideRight.Control = Tab_Filesystem
+        AnchorSideRight.Side = asrBottom
+        Left = 10
+        Height = 18
+        Top = 10
+        Width = 562
+        Anchors = [akTop, akLeft, akRight]
+        AutoSize = False
+        BorderSpacing.Left = 10
+        BorderSpacing.Top = 10
+        BorderSpacing.Right = 10
+        Caption = 'You can configure your FileSystem options on this server from this place.'
+        ParentColor = False
+        WordWrap = True
+      end
+      object Label_FS_Root: TLabel
+        Left = 48
+        Height = 18
+        Top = 49
+        Width = 85
+        Caption = 'Root Folder:'
+        ParentColor = False
+      end
+      object FS_Root: TDirectoryEdit
+        Left = 148
+        Height = 27
+        Top = 41
+        Width = 400
+        ShowHidden = False
+        ButtonWidth = 23
+        NumGlyphs = 0
+        MaxLength = 0
+        TabOrder = 0
+      end
+      object Label_FS_DirFormat: TLabel
+        Left = 12
+        Height = 18
+        Top = 89
+        Width = 121
+        Caption = 'Directory Format:'
+        ParentColor = False
+      end
+      object FS_Dir_Format: TEdit
+        Left = 148
+        Height = 27
+        Top = 80
+        Width = 400
+        TabOrder = 1
+        Text = '%D%_%M%_%Y%'
+      end
+      object FS_Enable_IllegalFilenames: TCheckBox
+        Left = 10
+        Height = 24
+        Top = 129
+        Width = 144
+        Caption = 'Illegal File names:'
+        TabOrder = 2
+      end
+      object FS_Enable_OnlyFilenames: TCheckBox
+        Left = 10
+        Height = 24
+        Top = 169
+        Width = 173
+        Caption = 'Allow only File names:'
+        TabOrder = 3
+      end
+      object FS_IllgalFilenames: TEdit
+        AnchorSideLeft.Control = Tab_Filesystem
+        AnchorSideTop.Control = Tab_Filesystem
+        AnchorSideRight.Control = Tab_Filesystem
+        AnchorSideRight.Side = asrBottom
+        Left = 205
+        Height = 27
+        Top = 124
+        Width = 343
+        Anchors = [akTop, akLeft, akRight]
+        BorderSpacing.Left = 205
+        BorderSpacing.Top = 124
+        BorderSpacing.Right = 34
+        Enabled = False
+        TabOrder = 4
+        Text = '^.ht ^.quota$ .html$ .js$ .php$ .exe$'
+      end
+      object FS_OnlyFilenames: TEdit
+        AnchorSideLeft.Control = Tab_Filesystem
+        AnchorSideTop.Control = Tab_Filesystem
+        AnchorSideRight.Control = Tab_Filesystem
+        AnchorSideRight.Side = asrBottom
+        Left = 205
+        Height = 27
+        Top = 167
+        Width = 343
+        Anchors = [akTop, akLeft, akRight]
+        BorderSpacing.Left = 205
+        BorderSpacing.Top = 167
+        BorderSpacing.Right = 34
+        Enabled = False
+        TabOrder = 5
+        Text = '.jpg$ .jpeg$ .mp4$ .flv$ .png$ .gif$ .bmp$'
+      end
+      object FS_Enable_Maxfilesize: TCheckBox
+        Left = 12
+        Height = 24
+        Top = 214
+        Width = 215
+        Caption = 'Maximum File Size Allowed: '
+        TabOrder = 6
+      end
+      object FS_MaxfilesizeValue: TSpinEdit
+        AnchorSideTop.Control = Tab_Filesystem
+        AnchorSideRight.Control = Tab_Filesystem
+        AnchorSideRight.Side = asrBottom
+        Left = 244
+        Height = 27
+        Top = 211
+        Width = 106
+        Anchors = [akTop, akLeft, akRight]
+        BorderSpacing.Top = 211
+        BorderSpacing.Right = 232
+        Enabled = False
+        MaxValue = 1024
+        TabOrder = 7
+        Value = 1
+      end
+      object FS_MaxfilesizeUnit: TComboBox
+        AnchorSideLeft.Control = Tab_Filesystem
+        AnchorSideTop.Control = Tab_Filesystem
+        AnchorSideRight.Control = Tab_Filesystem
+        AnchorSideRight.Side = asrBottom
+        Left = 356
+        Height = 29
+        Top = 209
+        Width = 192
+        Anchors = [akTop, akLeft, akRight]
+        AutoComplete = True
+        AutoCompleteText = [cbactEnabled, cbactEndOfLineComplete, cbactSearchAscending]
+        BorderSpacing.Left = 356
+        BorderSpacing.Top = 209
+        BorderSpacing.Right = 34
+        CharCase = ecUppercase
+        Enabled = False
+        ItemHeight = 0
+        ItemIndex = 0
+        Items.Strings = (
+          'K'
+          'KB'
+          'M'
+          'MB'
+          'G'
+          'GB'
+          'T'
+          'TB'
+          'P'
+          'PB'
+        )
+        TabOrder = 8
+        Text = 'K'
+      end
+    end
+    object Tab_Webserver: TTabSheet
+      Caption = 'Web Server'
+      ClientHeight = 434
+      ClientWidth = 582
+      object Webserver_Label: TLabel
+        AnchorSideLeft.Control = Tab_Webserver
+        AnchorSideTop.Control = Tab_Webserver
+        AnchorSideRight.Control = Tab_Webserver
+        AnchorSideRight.Side = asrBottom
+        Left = 10
+        Height = 58
+        Top = 10
+        Width = 562
+        Anchors = [akTop, akLeft, akRight]
+        BorderSpacing.Left = 10
+        BorderSpacing.Top = 10
+        BorderSpacing.Right = 10
+        Caption = 'Files that are uploaded via SockFTPD must be available for the web via a Web Server or a FTP server (etc).'#10'Please specify here the URL format that SockFTPD will serve to it''s clients.'
+        ParentColor = False
+        WordWrap = True
+      end
+      object Label_Webserver_URL: TLabel
+        Left = 10
+        Height = 18
+        Top = 97
+        Width = 32
+        Caption = 'URL:'
+        ParentColor = False
+      end
+      object WebServer_URL: TEdit
+        AnchorSideLeft.Control = Tab_Webserver
+        AnchorSideTop.Control = Tab_Webserver
+        AnchorSideRight.Control = Tab_Webserver
+        AnchorSideRight.Side = asrBottom
+        Left = 51
+        Height = 27
+        Top = 91
+        Width = 521
+        Anchors = [akTop, akLeft, akRight]
+        BorderSpacing.Left = 51
+        BorderSpacing.Top = 91
+        BorderSpacing.Right = 10
+        TabOrder = 0
+        Text = 'http://127.0.0.1/%USER%/%DIR%/%FILE%'
+      end
+    end
+    object Tab_Accounts: TTabSheet
+      AnchorSideLeft.Control = Tab_Webserver
+      AnchorSideTop.Control = Tab_Webserver
+      AnchorSideRight.Control = Tab_Webserver
+      AnchorSideRight.Side = asrBottom
+      AnchorSideBottom.Control = Tab_Webserver
+      Caption = 'Accounts'
+      ClientHeight = 434
+      ClientWidth = 582
+      object Label_Accounts_Hint: TLabel
+        AnchorSideLeft.Control = Tab_Accounts
+        AnchorSideTop.Control = Tab_Accounts
+        AnchorSideRight.Control = Tab_Accounts
+        AnchorSideRight.Side = asrBottom
+        Left = 10
+        Height = 38
+        Top = 10
+        Width = 562
+        Anchors = [akTop, akLeft, akRight]
+        BorderSpacing.Left = 10
+        BorderSpacing.Top = 10
+        BorderSpacing.Right = 10
+        Caption = 'Use this place to configure server accounts'#10'Hint: Press Down to add a new row'
+        ParentColor = False
+      end
+      object Users: TStringGrid
+        AnchorSideLeft.Control = Tab_Accounts
+        AnchorSideTop.Control = Tab_Accounts
+        AnchorSideRight.Control = Tab_Accounts
+        AnchorSideRight.Side = asrBottom
+        AnchorSideBottom.Control = Tab_Accounts
+        AnchorSideBottom.Side = asrBottom
+        Left = 10
+        Height = 358
+        Top = 66
+        Width = 562
+        Anchors = [akTop, akLeft, akRight, akBottom]
+        BorderSpacing.Left = 10
+        BorderSpacing.Top = 66
+        BorderSpacing.Right = 10
+        BorderSpacing.Bottom = 10
+        ColCount = 9
+        Columns = <        
+          item
+            Title.Caption = 'User'
+          end        
+          item
+            Title.Caption = 'Pass'
+          end        
+          item
+            Title.Caption = 'Quota'
+          end        
+          item
+            ButtonStyle = cbsCheckboxColumn
+            Title.Caption = 'R'
+          end        
+          item
+            ButtonStyle = cbsCheckboxColumn
+            Title.Caption = 'W'
+          end        
+          item
+            ButtonStyle = cbsCheckboxColumn
+            Title.Caption = 'RW'
+          end        
+          item
+            ButtonStyle = cbsCheckboxColumn
+            Title.Caption = 'Any Pwd'
+          end        
+          item
+            ButtonStyle = cbsCheckboxColumn
+            Title.Caption = 'Global'
+          end>
+        Options = [goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect, goEditing, goAutoAddRows, goRowSelect, goSmoothScroll]
+        RowCount = 2
+        TabOrder = 0
+        Cells = (
+          1
+          1
+          0
+          'User'
+        )
+      end
+    end
+    object Tab_DB: TTabSheet
+      Caption = 'Database'
+      ClientHeight = 434
+      ClientWidth = 582
+      OnContextPopup = Tab_DBContextPopup
+      object DB_Enable: TCheckBox
+        AnchorSideLeft.Control = Tab_DB
+        AnchorSideTop.Control = Tab_DB
+        AnchorSideRight.Control = Tab_DB
+        AnchorSideRight.Side = asrBottom
+        Left = 10
+        Height = 24
+        Top = 10
+        Width = 562
+        Anchors = [akTop, akLeft, akRight]
+        BorderSpacing.Left = 10
+        BorderSpacing.Top = 10
+        BorderSpacing.Right = 10
+        Caption = 'Enable MySQL 5.5 Database support'
+        TabOrder = 0
+      end
+      object Label_DB_Host: TLabel
+        Left = 12
+        Height = 18
+        Top = 49
+        Width = 74
+        Caption = 'Hostname:'
+        ParentColor = False
+      end
+      object Label_DB_User: TLabel
+        Left = 12
+        Height = 18
+        Top = 89
+        Width = 73
+        Caption = 'Username:'
+        ParentColor = False
+      end
+      object Label_DB_Pass: TLabel
+        Left = 12
+        Height = 18
+        Top = 129
+        Width = 71
+        Caption = 'Password:'
+        ParentColor = False
+      end
+      object Label_DB_Name: TLabel
+        Left = 12
+        Height = 18
+        Top = 169
+        Width = 69
+        Caption = 'Database:'
+        ParentColor = False
+      end
+      object DB_Host: TEdit
+        AnchorSideLeft.Control = Tab_DB
+        AnchorSideTop.Control = Tab_DB
+        AnchorSideRight.Control = Tab_DB
+        AnchorSideRight.Side = asrBottom
+        Left = 108
+        Height = 27
+        Top = 43
+        Width = 464
+        Anchors = [akTop, akLeft, akRight]
+        BorderSpacing.Left = 108
+        BorderSpacing.Top = 43
+        BorderSpacing.Right = 10
+        Enabled = False
+        TabOrder = 1
+        Text = '127.0.0.1'
+      end
+      object DB_User: TEdit
+        AnchorSideLeft.Control = Tab_DB
+        AnchorSideTop.Control = Tab_DB
+        AnchorSideRight.Control = Tab_DB
+        AnchorSideRight.Side = asrBottom
+        Left = 108
+        Height = 27
+        Top = 83
+        Width = 464
+        Anchors = [akTop, akLeft, akRight]
+        BorderSpacing.Left = 108
+        BorderSpacing.Top = 83
+        BorderSpacing.Right = 10
+        Enabled = False
+        TabOrder = 2
+        Text = 'root'
+      end
+      object DB_Pass: TEdit
+        AnchorSideLeft.Control = Tab_DB
+        AnchorSideTop.Control = Tab_DB
+        AnchorSideRight.Control = Tab_DB
+        AnchorSideRight.Side = asrBottom
+        Left = 108
+        Height = 27
+        Top = 123
+        Width = 464
+        Anchors = [akTop, akLeft, akRight]
+        BorderSpacing.Left = 108
+        BorderSpacing.Top = 123
+        BorderSpacing.Right = 10
+        EchoMode = emPassword
+        Enabled = False
+        PasswordChar = '*'
+        TabOrder = 3
+      end
+      object DB_Name: TEdit
+        AnchorSideLeft.Control = Tab_DB
+        AnchorSideTop.Control = Tab_DB
+        AnchorSideRight.Control = Tab_DB
+        AnchorSideRight.Side = asrBottom
+        Left = 108
+        Height = 27
+        Top = 165
+        Width = 464
+        Anchors = [akTop, akLeft, akRight]
+        BorderSpacing.Left = 108
+        BorderSpacing.Top = 165
+        BorderSpacing.Right = 10
+        Enabled = False
+        TabOrder = 4
+        Text = 'sockftpd'
+      end
+    end
+    object Tools: TTabSheet
+      Caption = 'Tools'
+      ClientHeight = 434
+      ClientWidth = 582
+      object Btn_Service_Install: TButton
+        Left = 140
+        Height = 25
+        Top = 49
+        Width = 280
+        Caption = 'Install Service'
+        TabOrder = 0
+      end
+      object Btn_Service_Remove: TButton
+        Left = 140
+        Height = 25
+        Top = 89
+        Width = 280
+        Caption = 'Remove Service'
+        TabOrder = 1
+      end
+      object Btn_Service_Start: TButton
+        Left = 140
+        Height = 25
+        Top = 129
+        Width = 280
+        Caption = 'Start Service'
+        TabOrder = 2
+      end
+      object Btn_Service_Stop: TButton
+        Left = 140
+        Height = 25
+        Top = 169
+        Width = 280
+        Caption = 'Stop Service'
+        TabOrder = 3
+      end
+    end
+  end
+  object Btn_Save: TButton
+    AnchorSideLeft.Control = Owner
+    AnchorSideBottom.Control = Owner
+    AnchorSideBottom.Side = asrBottom
+    Left = 10
+    Height = 25
+    Top = 490
+    Width = 190
+    Anchors = [akLeft, akBottom]
+    BorderSpacing.Left = 10
+    BorderSpacing.Bottom = 10
+    Caption = 'Save Configuration'
+    TabOrder = 1
+  end
+end
