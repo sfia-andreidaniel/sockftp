@@ -2,6 +2,7 @@
 *.ppu
 *.log
 sockftpd
+sockftpd.exe
 *~
 *.swp
 *.swo
