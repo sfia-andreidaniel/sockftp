@@ -1,0 +1,16 @@
+SOCKFTPD LICENSE
+
+Version 1.0.
+
+SockFTPD is a program that facilitates transfers of files on your
+server, via the websocket protocol.
+
+It can be used to facilitate fast uploads from websites in some folders
+you choose on your system.
+
+- You are free to distribute this program
+- You are free to alter this program
+- You agree to use this program at your own risk
+- If any damages / data loss will occur in your (others) system, by
+  any bugs, or bad usage of this program, you are the only 
+  responsible person in the world for those damages.

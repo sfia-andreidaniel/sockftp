@@ -2,7 +2,10 @@
 *.ppu
 *.log
 sockftpd
+sockftpd.o
 sockftpd.exe
+socftpdctl.exe
+sockftpdctl.o
 *~
 *.swp
 *.swo
@@ -12,3 +15,4 @@ fp.cfg
 fp.dsk
 fp.ini
 sockftpd.log
+*.msi
