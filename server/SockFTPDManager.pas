@@ -399,7 +399,7 @@ begin
     for i := 0 to n - 1 do
     begin
         
-        if ( ini.ReadString( 'origins', OriginsList.ValueFromIndex[ i ], '' ) <> '' ) then
+        if ( ini.ReadString( 'origins', OriginsList.Names[ i ], '' ) <> '' ) then
         begin
         
             NumOrigins := NumOrigins + 1;

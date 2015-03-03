@@ -17,6 +17,8 @@ function str_starts_with( S: AnsiString; What: AnsiString ): Boolean;
 function str_ends_with( S: AnsiString; What: AnsiString ): Boolean;
 function str_is_float( S: AnsiString ): Boolean;
 function str_is_int( S: AnsiString ): Boolean;
+function str_is_ipv4( IP: AnsiString ): Boolean;
+function str_is_sock_port( S: AnsiString ): Boolean;
 
 {
 
@@ -43,6 +45,62 @@ function str_is_int( S: AnsiString ): Boolean;
 function str_minimal_regex( S: AnsiString; Expr: AnsiString ): Boolean;
 
 implementation
+
+function str_is_sock_port( S: AnsiString ): Boolean;
+var a: LongInt;
+begin
+
+    result := FALSE;
+
+    if ( str_is_int( s ) ) then
+    begin
+
+        a := StrToInt( s );
+
+        if ( a > 0 ) and ( a < 65535 ) then
+        begin
+            result := TRUE;
+        end;
+
+    end;
+
+end;
+
+function str_is_ipv4( IP: AnsiString ): Boolean;
+var splits: TStrArray;
+    a, b, c, d: Integer;
+begin
+
+    result := false;
+
+    splits := str_split( IP, [ '.' ] );
+
+    if Length( splits ) = 4 then
+    begin
+
+        if str_is_int( splits[0] ) and
+           str_is_int( splits[1] ) and
+           str_is_int( splits[2] ) and
+           str_is_int( splits[3] ) then
+        begin
+
+            a := StrToInt( splits[0] );
+            b := StrToInt( splits[1] );
+            c := StrToInt( splits[2] );
+            d := StrToInt( splits[3] );
+
+            if ( a >= 0 ) and ( a < 255 ) and
+               ( b >= 0 ) and ( b < 255 ) and
+               ( c >= 0 ) and ( c < 255 ) and
+               ( d >= 0 ) and ( d < 255 ) then
+            begin
+                result := true;
+            end;
+
+        end
+
+    end
+end;                                                                                   
 
 function str_minimal_regex( S: AnsiString; Expr: AnsiString ): Boolean;
 var StartsWith: Boolean;
