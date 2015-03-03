@@ -16,7 +16,4 @@ fp.dsk
 fp.ini
 sockftpd.log
 *.msi
-config/config
-config/config.exe
-config/backup/*
-config/lib/*
+*.bak
