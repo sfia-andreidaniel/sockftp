@@ -21,10 +21,10 @@ AppUpdatesURL={#MyAppURL}
 DefaultDirName={pf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
-LicenseFile=C:\Users\andrei\Desktop\sockftp\install\LICENSE.TXT
+LicenseFile=LICENSE.TXT
 ;InfoBeforeFile=C:\Users\andrei\Desktop\sockftp\LICENSE.TXT
-InfoAfterFile=C:\Users\andrei\Desktop\sockftp\install\README.TXT
-OutputDir=C:\Users\andrei\Desktop\sockftp\install
+InfoAfterFile=README.TXT
+OutputDir=.
 OutputBaseFilename=setup-sockftpd
 Compression=lzma
 SolidCompression=yes
@@ -33,22 +33,24 @@ SolidCompression=yes
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "C:\Users\andrei\Desktop\sockftp\sockftpd.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\andrei\Desktop\sockftp\sockftpd.ini"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\andrei\Desktop\sockftp\libmysql.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\andrei\Desktop\sockftp\mime.types"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\andrei\Desktop\sockftp\README.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\andrei\Desktop\sockftp\srvstart.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\andrei\Desktop\sockftp\srvstart.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\andrei\Desktop\sockftp\logger.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\andrei\Desktop\sockftp\sockftpdctl.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\sockftpd.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\sockftpd.ini"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\libmysql.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\mime.types"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\srvstart.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\srvstart.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\logger.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\config.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
+Name: "{group}\Configure SockFTPD"; Filename: "{app}\config.exe"
 
 [Dirs]
 Name: "C:\srv\ftp"
 
 [Run]
-Filename: "{app}\sockftpd.ini"; Description: "Edit the sockftpd.ini file"; Flags: postinstall shellexec skipifsilent unchecked
+;Filename: "{app}\sockftpd.ini"; Description: "Edit the sockftpd.ini file"; Flags: postinstall shellexec skipifsilent unchecked
+Filename: "{app}\config.exe"; Description: "Configure SockFTPD"; Flags: postinstall shellexec skipifsilent unchecked

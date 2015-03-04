@@ -6,6 +6,9 @@ sockftpd.o
 sockftpd.exe
 socftpdctl.exe
 sockftpdctl.o
+sockftpdsvc.ini
+config.exe
+config
 *~
 *.swp
 *.swo

@@ -47,15 +47,18 @@ after you satisfy these requirements, you can build:
 
 - *sockftpd*, from it's project root directory:
 
-make
+make 
+
+or, if you want to build sockftpd together with a setup package ( wich will be found in install/setup-sockftpd.exe ),
+you can:
+
+make INNO="C:\Program Files (x86)\Inno Setup 5\Compil32.exe"
+
+where "C:\Program Files (x86)\Inno Setup 5\Compil32.exe" is the path to Inno Setup .exe application.
 
 - sockftpd *javascript api* from */api/js* folder, by issuing:
 
 make
-
-Optionally, you can build a "msi" package installer for windows, using the Inno Setup Compiler. An installation ini file
-can be found inside the "install/setup.iss" file ( although you will need to modify the absolute paths in order to
-satisfy your system ones ).
 
 ## under linux
 

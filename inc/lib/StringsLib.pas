@@ -19,6 +19,7 @@ function str_is_float( S: AnsiString ): Boolean;
 function str_is_int( S: AnsiString ): Boolean;
 function str_is_ipv4( IP: AnsiString ): Boolean;
 function str_is_sock_port( S: AnsiString ): Boolean;
+function str_contains( S: AnsiString; Chars: AnsiString ): Boolean;
 
 {
 
@@ -45,6 +46,49 @@ function str_is_sock_port( S: AnsiString ): Boolean;
 function str_minimal_regex( S: AnsiString; Expr: AnsiString ): Boolean;
 
 implementation
+
+function str_contains( S: AnsiString; Chars: AnsiString ): Boolean;
+var I, Len, J, N: LongInt;
+    Good: Boolean;
+begin
+    if ( Chars = '' ) or ( S = '' ) then
+    begin
+        result := FALSE;
+        exit;
+    end else
+    begin
+
+        Len := Length(S);
+        N   := Length(Chars);
+
+        result := TRUE;
+
+        for i := 1 to Len do
+        begin
+
+            Good := FALSE;
+
+            for j := 1 to N do
+            begin
+
+                if ( S[i] = Chars[j] ) then
+                begin
+                    Good := TRUE;
+                    Break;
+                end;
+
+            end;
+
+            if ( Good = FALSE ) then
+            begin
+                result := FALSE;
+                exit;
+            end;
+
+        end;
+
+    end;
+end;
 
 function str_is_sock_port( S: AnsiString ): Boolean;
 var a: LongInt;
