@@ -42,6 +42,8 @@ Source: "..\srvstart.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\srvstart.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\logger.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\config.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\api\js\SockFTP.js"; DestDir: "{app}\api\js"; Flags: ignoreversion
+Source: "..\api\js\index.html"; DestDir: "{app}\api\js"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
