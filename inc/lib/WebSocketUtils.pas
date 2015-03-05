@@ -61,12 +61,13 @@ type
             function    Encode(): AnsiString;
         
             function    EncodeWithFragmentation(): AnsiString;
+            
+            procedure   InsertFrameBefore( PreviousFrame: TWebSocket13Frame );
         
             destructor Free();
         
     end;
 
-function TWebSocket13Frame_IsBitSet  ( B: Byte; Pos: Byte ): Boolean;
 function TWebSocket13Frame_RotateMask( Data: AnsiString; Key: AnsiString; const Offset: Integer ): AnsiString;
 function TWebSocket13Frame_Decode    ( var MemBuffer: AnsiString ): TWebSocket13Frame;
 
@@ -188,6 +189,14 @@ begin
     result := out;
 end;
 
+procedure TWebSocket13Frame.InsertFrameBefore( PreviousFrame: TWebSocket13Frame );
+begin
+    PayloadData := PreviousFrame.PayloadData + PayloadData;
+    PayloadLength := PayloadLength + PreviousFrame.PayloadLength;
+    ActualLength := ActualLength + PreviousFrame.ActualLength;
+    OpCode := PreviousFrame.OpCode;
+end;
+
 function TWebSocket13Frame.Encode(): AnsiString;
 var _FIN : Byte;
     _RSV1: Byte;
@@ -295,16 +304,6 @@ begin
     
 end;
 
-function TWebSocket13Frame_isBitSet( B: Byte; pos: Byte ): Boolean;
-begin
-    
-    if ( B and ( pos * pos ) ) > 0 then
-        result := true
-    else
-        result := false;
-
-end;
-
 function TWebSocket13Frame_Decode( var MemBuffer: AnsiString ): TWebSocket13Frame;
 var buffLen       : LongInt;
     buffLenSaved  : LongInt;
@@ -337,12 +336,12 @@ begin
     
     frame := TWebSocket13Frame.Create;
     
-    frame.FIN := TWebSocket13Frame_isBitSet( firstByte, 7 );
-    frame.RSV1:= TWebSocket13Frame_isBitSet( firstByte, 6 );
-    frame.RSV2:= TWebSocket13Frame_isBitSet( firstByte, 5 );
-    frame.RSV3:= TWebSocket13Frame_isBitSet( firstByte, 4 );
+    frame.FIN := ( firstByte and $80 ) = $80;
+    frame.RSV1:= ( firstByte and $40 ) = $40;
+    frame.RSV2:= ( firstByte and $20 ) = $20;
+    frame.RSV3:= ( firstByte and $10 ) = $10;
     
-    frame.Mask:= TWebSocket13Frame_isBitSet( secondByte, 7 );
+    frame.Mask := ( firstByte and $F ) = $F;
 
     frame.OpCode := ( firstByte and $0F );
     
@@ -398,7 +397,6 @@ begin
     // don't continue until we have a full frame.
     if ( BuffLen < frame.payloadLength ) then
     Begin
-        //Console.Notice( 'PROTOCOL: We did not continued until the frame is full (needed still ', frame.payloadLength - BuffLen, ' bytes), left membuffer to ', Length( MemBuffer ), ' assert: ', BuffLenSaved );
         Frame.Free;
         result := nil;
         exit;

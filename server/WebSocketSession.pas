@@ -23,6 +23,7 @@ type
         private
         
             onDisconnectCalled: Boolean;
+            unfinishedFrame: TWebSocket13Frame;
         
         protected
             Ctx: TIdContext;
@@ -374,35 +375,59 @@ begin
             while Frame <> NIL do
             Begin
                 
+                if ( UnfinishedFrame <> NIL ) then
+                begin
+                    // if there is an unfinished frame, we add this frame to previous unfinished frame
+                    Frame.InsertFrameBefore( UnfinishedFrame );
+                    UnfinishedFrame.Free;
+                    UnfinishedFrame := NIL;
+                end;
+                
                 //writeln( 'MSGTYPE: ', Frame.frameType, ' MSGLEN: ', Frame.PayloadLength );
                 
-                case Frame.frameType Of
-                    
-                    FRAME_TYPE_TEXT:
-                        Begin
-                            OnMessage( Frame.PayloadData, FALSE );
-                        End;
-                    FRAME_TYPE_BINARY:
-                        Begin
-                            OnMessage( Frame.PayloadData, TRUE );
-                        End;
-                    FRAME_TYPE_CLOSE:
-                        BEGIN
-                            DisconnectedByClient := TRUE;
-                            Disconnect;
-                        END;
-                    FRAME_TYPE_PING:
-                        BEGIN
-                            SendPong;
-                        END;
-                    FRAME_TYPE_PONG:
-                        BEGIN
-                            // IGNORE THE PONG FRAMES
-                        END;
-                end;
-
-                Frame.Free;
+                if Frame.Fin then
+                begin
                 
+                    if Frame.PayloadLength > 0 then
+                
+                    begin
+                    
+                        // console.Warn( 'Process finished frame of ', Frame.payloadLength, 'bytes' );
+                    
+                        case Frame.frameType Of
+                        
+                            FRAME_TYPE_TEXT:
+                                Begin
+                                    OnMessage( Frame.PayloadData, FALSE );
+                                End;
+                            FRAME_TYPE_BINARY:
+                                Begin
+                                    OnMessage( Frame.PayloadData, TRUE );
+                                End;
+                            FRAME_TYPE_CLOSE:
+                                BEGIN
+                                    DisconnectedByClient := TRUE;
+                                    Disconnect;
+                                END;
+                            FRAME_TYPE_PING:
+                                BEGIN
+                                    SendPong;
+                                END;
+                            FRAME_TYPE_PONG:
+                                BEGIN
+                                    // IGNORE THE PONG FRAMES
+                                END;
+                        end;
+                        
+                    End;
+                    
+                    Frame.Free;
+                
+                End else
+                Begin
+                    UnfinishedFrame := Frame;
+                End;
+
                 if not ( isActive and not disconnectedByClient and not disconnectedByServer ) then begin
                     //Writeln( '* The thread has become inactive' );
                     break;
@@ -447,6 +472,9 @@ end;
 
 constructor TWebSocketSession.Create( _Session: TIdContext; _Protocol: String; _Origins: TStrArray );
 begin
+
+    UnFinishedFrame      := NIL;
+
     ctx                  := _session;
     ip                   := ctx.Connection.Socket.Binding.PeerIP;
     disconnectedByClient := FALSE;
