@@ -277,8 +277,8 @@ begin
                     if PosEX( 'Upgrade', parser.getHeader( 'Connection', '' ) ) = 0 then
                         raise Exception.Create( 'The connection is not of type "Upgrade"' );
                     
-                    if Parser.getHeader( 'Upgrade', '' ) <> 'websocket' Then
-                        raise Exception.Create( 'The Upgrade header is not "websocket"!' );
+                    if LowerCase( Parser.getHeader( 'Upgrade', '' ) ) <> 'websocket' Then
+                        raise Exception.Create( 'The Upgrade header is not "websocket" (but "' + Parser.getHeader( 'Upgrade', '' ) + '")'  );
                     
                     if Parser.getHeader( 'Sec-WebSocket-Version', '' ) <> '13' Then
                         raise Exception.Create( 'Unsupported websocket version ( Want "13", Got "' + Parser.getHeader( 'Sec-WebSocket-Version', '' ) + '" )' );
