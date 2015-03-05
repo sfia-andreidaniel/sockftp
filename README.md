@@ -1,14 +1,14 @@
 # sockftpd
 A websocket file transfer server (daemon) for Linux and Windows.
 
-# description
+# 1. Description
 The *sockftpd* is a TCP/IP server software that is used to transfer files to a server ( typically from a web browser ),
 using a fast websocket connection.
 
 The program is written in Free Pascal, and is provided with full source code. It relies on Indy TCP/IP socket stack, in order
 to ensure stable and fast transfers.
 
-# features
+# 2. Features
 
 - Runs both on Linux and Windows
 - MSI installer script provided (Windows only)
@@ -30,106 +30,92 @@ to ensure stable and fast transfers.
 - Ability to choose a list with "legal" only file names, which the server will accept on upload
 - Ability to integrate sockftpd with any webserver, via a simple mechanism, which can server after upload the files uploaded by users
 
-# building
+# 3. Building / Installing
 
-## under windows
+## 3.1. Under windows
 
-sockftpd was compiled successfully for windows using the fpc 2.6.4 i386 compiler.
+### 3.1.1. Build the sockftpd daemon
 
-in order to build the javascript api for the client, you will also need:
+You must have installed on your comuter:
 
-- nodejs
-- typescript compiler ( npm install typescript )
+*free pascal compiler* (fpc.exe should be in your path, meaning that is accessible from any directory) ( tested with 2.6.4 )
+*lazarus* (installed in c:\lazarus) ( tested with 1.2.6 )
 
-it is recommended to have these files in your path, being able to run them from any directory on the system.
+*optionally*, if you want to build a "setup.exe" file, you need to have the Inno Setup installed on your computer (tested with version 5)
 
-after you satisfy these requirements, you can build:
+build instructions:
 
-- *sockftpd*, from it's project root directory:
-
-make 
-
-or, if you want to build sockftpd together with a setup package ( wich will be found in install/setup-sockftpd.exe ),
-you can:
-
-make INNO="C:\Program Files (x86)\Inno Setup 5\Compil32.exe"
-
-where "C:\Program Files (x86)\Inno Setup 5\Compil32.exe" is the path to Inno Setup .exe application.
-
-- sockftpd *javascript api* from */api/js* folder, by issuing:
+cd into project directory.
 
 make
 
-## under linux
+if you have installed the Inno Setup on your compiler, type instead of "make":
 
-sockftpd has been tested on ubuntu 12.4 lts at this point, using the fpc 2.6.4 i386 compiler. you will also need nodejs,
-together with the typescript command installed ( npm install -g typescript ) in order to rebuild the javascript client
-api.
+make INNO="C:\Program Files\Inno Setup 5\Compil32.exe"
 
-after you satisfy these requirements, you can build:
+where "C:\Program Files\Inno Setup 5\Compil32.exe" is the path to the executable of the Inno Setup program.
 
-- *sockftpd*, from it's project root directory:
+that's it.
+
+### 3.1.2. install sockftpd daemon as a windows service
+
+In windows, you can install the program as a windows service in two wais:
+
+* *visual way*: Open "config.exe" from project dir. Use the interface buttons to install / uninstall windows service
+* *console way*: Use "sockftpdctl.exe" program ( --install, --uninstall, --start, --stop ) to install, uninstall, start or stop the service.
+
+### 3.1.3. build the sockftpd daemon javascript api
+
+You must have installed on your computer:
+
+* *nodejs*
+* *typescript* ( after you install nodejs, you run from a console: npm install -g typescript )
+
+The tsc program should be able to run in any folder of your system ( check if it's exported in PATH ).
+
+cd to the folder api/js/
 
 make
 
-- sockftpd *javascript api* from */api/js* folder, by issuing:
+If everything's fine, a SockFTPD.js file should be created in your "api/js" folder.
+
+## 3.2. Under linux
+
+### 3.2.1. Build SockFTPD daemon for Linux
+
+Building has been tested under linux Ubuntu 14.04 LTS. Tests for other platforms weren't made at this point, but if you know how to install packages for your distribution, everything should work fine.
+
+You need to have installed:
+
+- *fpc* ( use: apt-get install fpc )
+- *lazarus* ( use: apt-get install lazarus )
+
+Please check if "lazbuild" program is found in "/usr/bin/lazbuild", otherwise you might need to edit your Makefile accordingly, in order to correct paths for compilers.
+
+cd into project folder
 
 make
 
-# Installation
+### 3.2.2. Installing SockFTPD daemon to run as a service:
 
-## In windows
+sockftpdctl --install
 
-The recommended procedure for installing in Windows is to build first the "MSI" install package. If you do that, the msi
-packager will manage installation of the server program in any folder of your system, etc., and also will manage the
-uninstalling process.
+Configuring the service startup is made via the standard commands:
 
-All you have to do is to install the free Inno Setup Compiler, open the "install/setup.ino" file, edit it's paths in order
-to fit your system paths, and hit the build button. A MSI file will be generated, which you can use it for installation
-afterwards, like any windows program.
+/etc/init.d/sockftpd start
+/etc/init.d/sockftpd stop
+/etc/init.d/sockftpd restart
 
-After you install the MSI package, see the section "General Configuration", in order to find out how you can setup the service.
+### 3.2.3. Building the SockFTPD javascript api
 
-## In linux
+You need to have installed the packages "nodejs" and "typescript" on computer.
 
-Assuming that you managed to build the program, you must do the following steps.
+cd into "api/js" folder
 
-TODO.
+make
 
-## General configuration
+That's it.
 
-SockFTPD needs a root folder where it will store it's files. The default folder in is "/srv/ftp" in linux, and "C:\srv\ftp" in Windows.
+## 3.3. General configuration
 
-In this folder, SockFTPD will create a folder for each user account you configured in the sockftpd.ini file.
-
-In each "user home" folder, sockftpd will create a file named ".quota", where it stores the uploaded total bytes by the
-respective user.
-
-The user home folders are automatically created, but the ftp root folder will not be created automatically, it needs to be
-created by you.
-
-Basically, if you open the sockftpd.ini file, you will be able to configure the daemon in all it's aspects.
-
-### Installing on Windows as a service
-
-After you created the sockftpd root folder, edited your ini file, setup a quota for each user, etc, you can install
-the service by using the tool called "sockftpdctl.exe":
-
-- sockftpdctl.exe --install - to install the service
-- sockftpdctl.exe --uninstall - to uninstall the service
-
-and
-
-- sockftpdctl.exe --start
-- sockftpdctl.exe --stop
-
-Note that the sockftpdctl.exe file must be executed with administrative privileges under windows, in order to have
-access to the windows services database. In the background the tool is using two windows native commands: SC.EXE, and
-NET.EXE.
-
-A third party program called srvstart.exe is used to provide the "run as a service feature", which is automatically
-copied in your program root folder. The srvstart.exe program can be downloaded from the address:
-
-http://www.nick.rozanski.org.uk/software
-
-A copy of the original srvstart.exe program can be located in the "bin/" folder.
+The easier way to configure sockftpd daemon is via it's config program, which runs on GUI. On windows shouldn't be a problem, but on linux you mihgt need to modify the "sockftpd.ini" file directly from your favourite text editor.
