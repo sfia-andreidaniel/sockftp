@@ -4,7 +4,7 @@
 sockftpd
 sockftpd.o
 sockftpd.exe
-socftpdctl.exe
+sockftpdctl.exe
 sockftpdctl.o
 sockftpdsvc.ini
 config.exe

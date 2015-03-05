@@ -1,5 +1,3 @@
-.PHONY: build
-
 SHELL := /bin/bash
 OPTIMIZE ?= -O3
 LINKING ?= -XX
