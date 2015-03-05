@@ -19,6 +19,9 @@ build:: clean
 sockftpdctl:: clean
 	fpc sockftpdctl.pas -vwen -Mobjfpc $(OPTIMIZE) $(LINKING) $(INCLUDES)
 
+consoleonly:: clean
+	fpc sockftpd.pas -vwen -Mobjfpc $(OPTIMIZE) $(LINKING) $(INCLUDES)
+	fpc sockftpdctl.pas -vwen -Mobjfpc $(OPTIMIZE) $(LINKING) $(INCLUDES)
 
 clean::
 	rm -f inc/lib/*.o server/*.o *.o inc/indy/*.o \

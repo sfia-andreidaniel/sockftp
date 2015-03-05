@@ -38,7 +38,7 @@
                 _Session.SendText( '{ "id": ' + IntToStr( CmdID ) + ', "ok": true }' );
                 _Session.CurrentUser := UserName;
                 
-                Console.Log( 'Session #' + IntToStr( _Session.ID ) + ' [' + _Session.IP + '] : AUTH "' + UserName + '" OK' );
+                Console.Log( 'Session #' + IntToStr( _Session.ID ) + ' [' + _Session.IP + '] AUTH "' + UserName + '" OK' );
                 
             end else
             begin
