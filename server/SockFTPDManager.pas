@@ -648,6 +648,8 @@ begin
     if not FileExists( QuotaFile ) then
     begin
         
+        quotaVal := 0;
+
         {$I-}
         assign( F, QuotaFile );
         rewrite( F );

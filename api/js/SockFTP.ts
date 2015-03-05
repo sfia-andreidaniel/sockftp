@@ -9,7 +9,6 @@
  * auth        ( details: SockFTPAuthDetails     ) // fired as a result of authentication.
  * transferinit( details: SockFTPTransferDetails ) // fired as a result of initiation of a transfer
  * put         ( details: SockFTPUploadDetails   ) // fired as a result of a completed upload
- * get         ( details: SockFTPDownloadDetails ) // fired as a result of a completed download
  * progress    ( details: SockFTPProgressDetails ) // fired when a progress ( upload / download ) occurs
  * 
  */
@@ -541,23 +540,114 @@ class SockFTP extends Events {
 
 	// binds the uploader to a FileInput element, so that
 	// any time the file changes, the file is uploaded to the server
-	public bindTo( input: HTMLInputElement ) {
+	public bindTo( element: any ) {
 
-		this.log( 'binding to: ', input );
+		this.log( 'binding to: ', element );
+
+		if ( !element || !element.nodeName ) {
+			throw "Element must be a HTMLElement ( input, div, etc. )";
+		}
 
 		( function( me ) {
 
-			input.addEventListener( 'change', function( evt ) {
 
-				for ( var i=0, len = input.files.length; i<len; i++ ) {
-					me.put( input.files[i] );
+			element.bindings = {};
+
+			if ( element.nodeName.toLowerCase() == 'input' && element.type && element.type.toLowerCase() == 'file' ) {
+				
+				element.addEventListener( 'change', element.bindings.change = function( evt ) {
+
+					for ( var i=0, len = element.files.length; i<len; i++ ) {
+						me.put( element.files[i] );
+					}
+
+				}, true );
+			
+			}
+
+
+			element.addEventListener( 'paste', element.bindings.paste = function( evt: any ) {
+
+				if ( evt.clipboardData && evt.clipboardData.files && evt.clipboardData.files.length ) {
+					for ( var i=0, len = evt.clipboardData.files.length; i<len; i++ ) {
+						me.put( evt.clipboardData.files[i] );
+					}
+				} else
+
+				if ( evt.clipboardData && evt.clipboardData.items && evt.clipboardData.items.length ) {
+
+					for ( var i=0, len = evt.clipboardData.items.length; i<len; i++ ) {
+
+						if ( evt.clipboardData.items[i].kind && evt.clipboardData.items[i].kind == 'file' ) {
+							me.put( evt.clipboardData.items[i].getAsFile() );
+						}
+
+					}
+
 				}
 
-			}, false );
+			}, true );
+
+			// On drag'n drop of type files, upload files on server...
+
+
+			// dragenter ...
+			element.addEventListener( 'dragover', element.bindings.dragover = function( evt ) {
+				evt.preventDefault();
+				evt.stopPropagation();
+				evt.dataTransfer.dropEffect = 'copy';
+				element.setAttribute( 'dragover', 'on' );
+			}, true );
+
+
+			// dragleave...
+			element.addEventListener( 'dragleave', element.bindings.dragleave = function( evt ) {
+				evt.preventDefault();
+				evt.stopPropagation();
+				element.removeAttribute( 'dragover' );
+			}, true );
+
+			// drop
+			element.addEventListener( 'drop', element.bindings.drop = function( evt ) {
+				evt.stopPropagation();
+        		evt.preventDefault();
+        		element.removeAttribute( 'dragover' );
+        		
+        		if ( evt.dataTransfer && evt.dataTransfer.files ) {
+        			for ( var i=0, len = evt.dataTransfer.files.length; i<len; i++ ) {
+        				me.put( evt.dataTransfer.files[i] );
+        			}
+        		}
+			}, true );
+
+			element.addEventListener( 'focus', element.bindings.focus = function( evt ) {
+				element.setAttribute( 'dragover', 'on' );
+			}, true );
+
+			element.addEventListener( 'blur', element.bindings.blur = function( evt ) {
+				element.removeAttribute( 'dragover' );
+			}, true );
+
+			// activate focusing on element...
+			element.tabIndex = 0;
 
 		} )( this );
 
 	}
+
+	public unbindFrom( element: any ) {
+
+		if ( element.bindings && element.removeEventListener ) {
+
+			for ( var k in element.bindings ) {
+				element.removeEventListener( k, element.bindings[k], true );
+			}
+
+			delete element.bindings;
+
+		}
+
+	}	
 
 	public login( user: string, password: string, success: () => void, error: ( reason: string ) => void ) {
 
