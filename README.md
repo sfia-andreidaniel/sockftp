@@ -8,6 +8,8 @@ using a fast websocket connection.
 The program is written in Free Pascal, and is provided with full source code. It relies on Indy TCP/IP socket stack, in order
 to ensure stable and fast transfers.
 
+**FOR A BIG PICTURE, VIEW THE DIAGRAM FROM EXTRAS/DIAGRAM.PNG FILE**
+
 # 2. Features
 
 - Runs both on Linux and Windows
