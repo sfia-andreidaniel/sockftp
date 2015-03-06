@@ -1552,45 +1552,73 @@ begin
     if not DB_Enabled then
         exit;
     
-    if not SQLConn.Connected then
-        SQLConn.Connected := true;
+    try
+
+        if not SQLConn.Connected then
+            SQLConn.Connected := true;
+
+    except
+        On E: Exception Do
+        Begin
+            Console.Warn( 'TSockFTPDManager.DB_SaveFile: DB_Exception (While Connecting): ', E.Message );
+            raise;
+        End;
+    end;
+
 
     FTransaction := TSQLTransaction.Create( nil );
-    
-    With FTransaction Do
-    Begin
-        
-        Database := SQLConn;
-        StartTransaction;
-        
-    End;
-    
     FQuery := TSQLQuery.Create( NIL );
     
-    With FQuery Do
-    Begin
-        Database := SQLConn;
-        Transaction := FTransaction;
-        
-        SQL.Clear;
-        SQL.Add( 
-            'INSERT INTO files ( name, type, url, user, size ) VALUES ( ' +
-                json_encode( struct.name ) + ', ' +
-                json_encode( mime_type( struct.name ) ) + ', ' +
-                json_encode( struct.remote ) + ', ' +
-                json_encode( struct.user ) + ', ' +
-                intToStr( struct.size ) +
-            ');'
-        );
-        
-        ExecSQL;
-        
-    End;
+    try
+
+        try
+
+            With FTransaction Do
+            Begin
+                
+                Database := SQLConn;
+                StartTransaction;
+                
+            End;
+            
+            With FQuery Do
+            Begin
+                Database := SQLConn;
+                Transaction := FTransaction;
+                
+                SQL.Clear;
+                SQL.Add( 
+                    'INSERT INTO files ( name, type, url, user, size ) VALUES ( ' +
+                        json_encode( struct.name ) + ', ' +
+                        json_encode( mime_type( struct.name ) ) + ', ' +
+                        json_encode( struct.remote ) + ', ' +
+                        json_encode( struct.user ) + ', ' +
+                        intToStr( struct.size ) +
+                    ');'
+                );
+                
+                ExecSQL;
+                
+            End;
+            
+            FTransaction.CommitRetaining;
+
+        except
+
+            On E: Exception Do
+            Begin
+                console.Error( 'TSockFTPDManager.DB_SaveFile: DB_Exception: ', E.Message );
+                raise;
+            End;
+
+        end;
+
+    finally
     
-    FTransaction.CommitRetaining;
-    
-    FTransaction.Free;
-    FQuery.Free;
+        FTransaction.Free;
+        FQuery.Free;
+
+    end;
     
 end;
 
