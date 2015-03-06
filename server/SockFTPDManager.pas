@@ -1552,6 +1552,9 @@ begin
     if not DB_Enabled then
         exit;
     
+    if not SQLConn.Connected then
+        SQLConn.Connected := true;
+
     FTransaction := TSQLTransaction.Create( nil );
     
     With FTransaction Do
@@ -1614,6 +1617,9 @@ begin
 
     try
     
+        if not SQLConn.Connected then
+           SQLConn.Connected := true;
+
         FTransaction := TSQLTransaction.Create( NIL );
     
         With FTransaction Do
