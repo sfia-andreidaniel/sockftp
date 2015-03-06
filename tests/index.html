@@ -1,0 +1,325 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<style>
+
+		*[dragover] {
+			background-color: red;
+			color: white;
+		}
+
+	</style>
+</head>
+<body>
+	<div id="paster">
+		Paste
+	</div>
+	<input type="file" id="paster1" />
+
+	<script type="text/javascript">
+
+	function BrowserType() {
+
+		if ( navigator && navigator.userAgent && 
+             /Mozilla/.test( navigator.userAgent ) &&
+             /AppleWebKit/.test( navigator.userAgent ) &&
+             /Chrome/.test( navigator.userAgent ) &&
+             /Safari/.test( navigator.userAgent ) &&
+             / OPR\//.test( navigator.userAgent )
+		) return "o"
+
+		else {
+
+			var o = {
+				"ms"     : 0,
+				"moz"    : 0,
+				"webkit" : 0
+			}, k, key;
+
+			for ( k in window ) {
+				key = /^(on)?(ms|moz|webkit)/.exec( k.toLowerCase() );
+				if ( key ) {o[key[2]]++};
+			}
+
+			if ( o.ms > o.moz && o.ms > o.webkit ) {
+				return 'ms';
+			} else
+			if ( o.moz > o.ms && o.moz > o.webkit ) {
+				return 'moz';
+			} else
+			if ( o.webkit > o.moz && o.webkit > o.ms ) {
+				return 'webkit';
+			} else {
+				return '';
+			}
+
+		}
+
+	}
+
+	function onHTMLPaste( element ) {
+
+		var i = 0,
+		    len = 0,
+		    items = [],
+		    src = '';
+
+		for ( i=0, items = element.querySelectorAll( 'img' ) || [], len = items.length; i<len; i++ ) {
+
+			src = items[i].src;
+
+			if ( /^data\:image\//.test( src ) ) {
+				console.warn( 'onhtmlpaste: ', src );
+			}
+
+		}
+
+		element.innerHTML = '';
+
+	}
+
+	function onNativePaste( evt ) {
+
+		var files, i, len, f, clipData, syFile;
+
+		clipData = evt.clipboardData || evt.dataTransfer || window.clipboardData || null;
+
+		syFile = false;
+
+		if ( clipData && clipData.files && clipData.files.length ) {
+
+			for ( i=0, files = clipData.files, len = files.length; i<len; i++ ) {
+				console.warn( 'sys file: ', files[i].name, files[i].type, files[i].size );
+				syFile = true;
+			}
+
+		}
+
+		if ( clipData && clipData.items && clipData.items.length && !syFile ) {
+
+			for ( i=0, files = clipData.items, len = files.length; i<len; i++ ) {
+				if ( files[i].kind && files[i].kind == 'file' ) {
+					f = files[i].getAsFile();
+					console.warn( 'clip file: ', f.type, f.size );
+				}
+			}
+
+		}
+
+	}
+
+	function rememberBinding( bindings, src, name, callback, phase ) {
+
+		bindings.records.push( {
+			"to": src || null,
+			"cb": callback,
+			"name": name,
+			"phase": phase || false
+		} );
+
+		return callback;
+
+	}
+
+	function bindElement( item ) {
+
+		if ( !item ) {
+			return;
+		}
+
+		var isPastableNative = ( item.nodeName.toLowerCase() == 'input' && item.type == 'text' ) || ( item.nodeName.toLowerCase() == 'textarea' ),
+			UA_Type = BrowserType(),
+			target = null,
+
+			bindings = {
+				"target": target,
+				"records": []
+			};
+
+
+
+		item.tabIndex = 0;
+
+		if ( item.nodeName.toLowerCase() == 'input' && item.type.toLowerCase() == 'file' ) {
+
+			item.addEventListener( 'focus', rememberBinding( bindings, null, 'focus', function() {
+				item.setAttribute( 'dragover', '' );
+			}, true ), true );
+
+			item.addEventListener( 'blur', rememberBinding( bindings, null, 'blur', function() {
+				item.removeAttribute( 'dragover' );
+			}, true ), true );
+
+			item.addEventListener( 'change', rememberBinding( bindings, null, 'change', function( evt ) {
+				for ( var i=0, files = item.files || [], len = files.length; i<len; i++ ) {
+					console.warn( 'sysfile: ', files[i].name, files[i].size, files[i].type );
+				}
+			}, true ), true );
+
+		} else {
+
+			if ( !isPastableNative ) {
+
+				if ( UA_Type != 'webkit' && UA_Type != 'o' ) {
+					// on webkit the "paste" event is triggered even if the item is not contenteditable.
+
+					try {
+
+						if ( !item.appendChild ) {
+							throw "E_NOT_APPENDABLE";
+						}
+
+						target = document.createElement( 'div' );
+						target.className = 'clipboard-trap';
+						target.contentEditable = true;
+
+						target.style.cssText = 'opacity: 0; -webkit-opacity: 0;	-moz-opacity: 0; -ms-opacity: 0; -o-opacity: 0;	left: 0px; top: 0px; right: 0px; bottom: 0px; position: absolute; z-index: -1; overflow: hidden;';
+
+						bindings.target = target;
+
+						item.style.position = 'relative';
+						item.appendChild( target );
+
+					} catch ( E ) {
+						target = null;
+					}
+
+				}
+
+
+				if ( target ) {
+
+					if ( UA_Type == 'moz' || UA_Type == 'ms' ) {
+						
+						target.addEventListener( 'paste', rememberBinding( bindings, 'target', 'paste', function( evt ) {
+							if ( UA_Type == 'moz' )
+								setTimeout( function() { onHTMLPaste( target ); }, 100 );
+							else {
+								evt.preventDefault();
+								evt.stopPropagation();
+								onNativePaste( evt );
+							}
+						}, true ), true );
+
+						item.addEventListener( 'keydown', rememberBinding( bindings, null, 'keydown', function( evt ) {
+							if ( evt.ctrlKey && evt.keyCode == '86' ) {
+								target.focus();
+							} else {
+								if ( document.activeElement != item )
+								item.focus();
+							}
+						}, true ), true );
+
+					} else {
+						
+						item.addEventListener( 'paste', rememberBinding( bindings, null, 'paste', function( evt ) {
+							evt.preventDefault();
+							evt.stopPropagation();
+							onNativePaste( evt );
+						}, true ), true );
+
+					}
+
+					target.addEventListener( 'focus', rememberBinding( bindings, 'target', 'focus', function() {
+						item.setAttribute( 'dragover', '' );
+					}, true ), true );
+
+					target.addEventListener( 'blur', rememberBinding( bindings, 'target', 'blur', function() {
+						item.removeAttribute('dragover');
+					}, true ), true );
+
+
+				} else {
+
+					item.addEventListener( 'paste', rememberBinding( bindings, null, 'paste', function( evt ) {
+						evt.preventDefault();
+						evt.stopPropagation();
+						onNativePaste( evt );
+					}, true ), true );
+
+				}
+
+			} 
+
+			item.addEventListener( 'focus', rememberBinding( bindings, null, 'focus', function() {
+				item.setAttribute( 'dragover', '' );
+			}, true ), true );
+
+			item.addEventListener( 'blur', rememberBinding( bindings, null, 'blur', function() {
+				item.removeAttribute( 'dragover' );
+			}, true ), true );
+
+			item.addEventListener( 'dragenter', rememberBinding( bindings, null, 'dragenter', function( evt ) {
+				item.setAttribute( 'dragover', '' );
+				evt.preventDefault();
+			}, true ), true );
+
+			item.addEventListener( 'dragover', rememberBinding( bindings, null, 'dragover', function( evt ) {
+				item.setAttribute( 'dragover', '' );
+				evt.preventDefault();
+			}, true ), true );
+
+			item.addEventListener( 'dragleave', rememberBinding( bindings, null, 'dragleave', function( evt ) {
+				item.removeAttribute( 'dragover' );
+				evt.preventDefault();
+			}, true ), true );
+
+			item.addEventListener( 'drop', rememberBinding( bindings, null, 'drop', function( evt ) {
+				evt.preventDefault();
+				evt.stopPropagation();
+				onNativePaste( evt );
+			}, true ), true );
+
+		}
+
+		item.bindings = bindings;
+
+	}
+
+	function unbindElement( element ) {
+
+		if ( element && element.bindings ) {
+
+			element.removeAttribute( 'dragover' );
+
+			if ( element.bindings.records ) {
+				
+				for ( var i=0, len = element.bindings.records.length; i<len; i++ ) {
+
+					( element.bindings.records[i].to == 'target'
+						? element.bindings.target
+						: element
+					).removeEventListener(
+						element.bindings.records[i].name,
+						element.bindings.records[i].cb,
+						element.bindings.records[i].phase
+					);
+
+					element.bindings.records[i] = null;
+
+				}
+
+				delete element.bindings.records;
+
+
+			}
+
+			if ( element.bindings.target ) {
+				if ( element.bindings.target.parentNode ) {
+					element.bindings.target.parentNode.removeChild( element.bindings.target );
+				}
+				element.bindings.target = null;
+				delete element.bindings.target;
+			}
+
+			delete element.bindings;
+		}
+
+	}
+
+	bindElement( document.getElementById( 'paster' ) );
+	bindElement( document.getElementById( 'paster1' ) );
+
+	</script>
+</body>
+</html>
