@@ -388,38 +388,34 @@ begin
                 if Frame.Fin then
                 begin
                 
-                    if Frame.PayloadLength > 0 then
+                    // console.Warn( 'Process finished frame of ', Frame.payloadLength, 'bytes' );
                 
-                    begin
+                    case Frame.frameType Of
                     
-                        // console.Warn( 'Process finished frame of ', Frame.payloadLength, 'bytes' );
-                    
-                        case Frame.frameType Of
-                        
-                            FRAME_TYPE_TEXT:
-                                Begin
-                                    OnMessage( Frame.PayloadData, FALSE );
-                                End;
-                            FRAME_TYPE_BINARY:
-                                Begin
-                                    OnMessage( Frame.PayloadData, TRUE );
-                                End;
-                            FRAME_TYPE_CLOSE:
-                                BEGIN
-                                    DisconnectedByClient := TRUE;
-                                    Disconnect;
-                                END;
-                            FRAME_TYPE_PING:
-                                BEGIN
-                                    SendPong;
-                                END;
-                            FRAME_TYPE_PONG:
-                                BEGIN
-                                    // IGNORE THE PONG FRAMES
-                                END;
-                        end;
-                        
-                    End;
+                        FRAME_TYPE_TEXT:
+                            Begin
+                                if ( Frame.PayloadLength > 0 ) then
+                                OnMessage( Frame.PayloadData, FALSE );
+                            End;
+                        FRAME_TYPE_BINARY:
+                            Begin
+                                if ( Frame.PayloadLength > 0 ) then
+                                OnMessage( Frame.PayloadData, TRUE );
+                            End;
+                        FRAME_TYPE_CLOSE:
+                            BEGIN
+                                DisconnectedByClient := TRUE;
+                                Disconnect;
+                            END;
+                        FRAME_TYPE_PING:
+                            BEGIN
+                                SendPong;
+                            END;
+                        FRAME_TYPE_PONG:
+                            BEGIN
+                                // IGNORE THE PONG FRAMES
+                            END;
+                    end;
                     
                     Frame.Free;
                 
@@ -547,6 +543,10 @@ end;
 
 destructor TWebSocketSession.Free;
 begin
+
+    if UnFinishedFrame <> NIL then
+        UnFinishedFrame.Free;
+
     Disconnect();
 end;
 
