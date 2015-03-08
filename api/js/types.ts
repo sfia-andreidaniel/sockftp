@@ -51,6 +51,13 @@ interface SockFTPProgressDetails {
 	currentProgress?     : number;
 }
 
+interface SockFTPFileBase64 {
+	name : string;
+	type : string;
+	size : number;
+	bytes: Uint8Array;
+}
+
 enum ConnectionState {
 	CLOSED,
 	OPENED

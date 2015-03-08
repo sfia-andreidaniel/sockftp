@@ -37,7 +37,7 @@ class SockFTP_Command_Put extends SockFTP_Command {
 		this.type = this.file.type || 'application/octet-stream';
 		this.fname = this.file.name || '';
 
-		if ( this.fname == '' ) {
+		if ( !this.fname ) {
 
 			if ( this.type != '' ) {
 
@@ -54,7 +54,7 @@ class SockFTP_Command_Put extends SockFTP_Command {
 						this.fname = 'image.gif';
 						break;
 					default:
-						console.warn( 'Don\'t know what name to give for mime type: ' + this.type + '. A File.Bin will be automatically issued' );
+						this.client.warn( 'Don\'t know what name to give for mime type: ' + this.type + '. A "file.bin" will be automatically issued' );
 						this.fname = 'file.bin';
 						break;
 

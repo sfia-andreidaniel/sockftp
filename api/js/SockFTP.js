@@ -74,7 +74,7 @@ var __extends = this.__extends || function (d, b) {
 };
 var SockFTP = (function (_super) {
     __extends(SockFTP, _super);
-    function SockFTP(/* host: string, port: number, userName: string, password: string */ settings) {
+    function SockFTP(settings) {
         _super.call(this);
         // connection settings
         this.settings = null;
@@ -408,11 +408,14 @@ var SockFTP = (function (_super) {
         var command, details;
         (function (me) {
             command = new SockFTP_Command_Put(me, f, success || function () {
-                me.log('PUT "' + f.name + '": OK.');
+                // note that "this" In the context of the callback is the command itself.
+                me.log('PUT "' + this.fname + '": OK.');
             }, error || function (reason) {
-                me.error('PUT "' + f.name + '": ERROR: ' + (reason || 'Unknown upload error'));
+                // note that "this" in the context of the callback is the command itself.
+                me.error('PUT "' + this.fname + '": ERROR: ' + (reason || 'Unknown upload error'));
             }, progress || function (percent, name) {
-                me.log('PUT "' + f.name + '": ' + percent + '%');
+                // note that "this" in the context of the callback is the command itself
+                me.log('PUT "' + this.fname + '": ' + percent + '%');
             });
             me.addCommand(command);
         })(this);
@@ -435,75 +438,245 @@ var SockFTP = (function (_super) {
             "ok": true
         };
     };
-    // binds the uploader to a FileInput element, so that
-    // any time the file changes, the file is uploaded to the server
-    SockFTP.prototype.bindTo = function (element) {
-        this.log('binding to: ', element);
-        if (!element || !element.nodeName) {
-            throw "Element must be a HTMLElement ( input, div, etc. )";
+    SockFTP.prototype.putBase64Uri = function (uri, success, error, progress) {
+        if (success === void 0) { success = null; }
+        if (error === void 0) { error = null; }
+        if (progress === void 0) { progress = null; }
+        var matches, file = {
+            "name": "",
+            "size": 0,
+            "type": "application/octet-stream",
+            "bytes": null
+        }, raw, rawLength = 0, i = 0;
+        if (!(matches = /^data\:(.*);base64,/.exec(uri))) {
+            throw "PUT.base64: invalid url. Ignoring.";
         }
+        file.type = matches[1];
+        raw = atob(uri.split(';base64,')[1] || '');
+        rawLength = raw.length;
+        file.bytes = new Uint8Array(new ArrayBuffer(rawLength));
+        file.size = rawLength;
+        for (i = 0; i < rawLength; i++) {
+            file.bytes[i] = raw.charCodeAt(i);
+        }
+        switch (true) {
+            case /^image\/png$/i.test(file.type):
+                file.name = 'picture.png';
+                break;
+            case /^image\/(jpg|jpeg)$/i.test(file.type):
+                file.name = 'picture.jpg';
+                break;
+            case /^image\/gif$/i.test(file.type):
+                file.name = 'image.gif';
+                break;
+            default:
+                file.name = ''; // will show warning on putbase64.ts : 57
+                break;
+        }
+        var command, details;
         (function (me) {
-            element.bindings = {};
-            if (element.nodeName.toLowerCase() == 'input' && element.type && element.type.toLowerCase() == 'file') {
-                element.addEventListener('change', element.bindings.change = function (evt) {
-                    for (var i = 0, len = element.files.length; i < len; i++) {
-                        me.put(element.files[i]);
-                    }
-                }, true);
-            }
-            element.addEventListener('paste', element.bindings.paste = function (evt) {
-                if (evt.clipboardData && evt.clipboardData.files && evt.clipboardData.files.length) {
-                    for (var i = 0, len = evt.clipboardData.files.length; i < len; i++) {
-                        me.put(evt.clipboardData.files[i]);
-                    }
-                }
-                else if (evt.clipboardData && evt.clipboardData.items && evt.clipboardData.items.length) {
-                    for (var i = 0, len = evt.clipboardData.items.length; i < len; i++) {
-                        if (evt.clipboardData.items[i].kind && evt.clipboardData.items[i].kind == 'file') {
-                            me.put(evt.clipboardData.items[i].getAsFile());
-                        }
-                    }
-                }
-            }, true);
-            // On drag'n drop of type files, upload files on server...
-            // dragenter ...
-            element.addEventListener('dragover', element.bindings.dragover = function (evt) {
-                evt.preventDefault();
-                evt.stopPropagation();
-                evt.dataTransfer.dropEffect = 'copy';
-                element.setAttribute('dragover', 'on');
-            }, true);
-            // dragleave...
-            element.addEventListener('dragleave', element.bindings.dragleave = function (evt) {
-                evt.preventDefault();
-                evt.stopPropagation();
-                element.removeAttribute('dragover');
-            }, true);
-            // drop
-            element.addEventListener('drop', element.bindings.drop = function (evt) {
-                evt.stopPropagation();
-                evt.preventDefault();
-                element.removeAttribute('dragover');
-                if (evt.dataTransfer && evt.dataTransfer.files) {
-                    for (var i = 0, len = evt.dataTransfer.files.length; i < len; i++) {
-                        me.put(evt.dataTransfer.files[i]);
-                    }
-                }
-            }, true);
-            element.addEventListener('focus', element.bindings.focus = function (evt) {
-                element.setAttribute('dragover', 'on');
-            }, true);
-            element.addEventListener('blur', element.bindings.blur = function (evt) {
-                element.removeAttribute('dragover');
-            }, true);
-            // activate focusing on element...
-            element.tabIndex = 0;
+            command = new SockFTP_Command_PutBase64(me, file, success || function () {
+                // note that "this" In the context of the callback is the command itself.
+                me.log('PUT "' + this.fname + '": OK.');
+            }, error || function (reason) {
+                // note that "this" in the context of the callback is the command itself.
+                me.error('PUT "' + this.fname + '": ERROR: ' + (reason || 'Unknown upload error'));
+            }, progress || function (percent, name) {
+                // note that "this" in the context of the callback is the command itself
+                me.log('PUT "' + this.fname + '": ' + percent + '%');
+            });
+            me.addCommand(command);
         })(this);
+        details = {
+            "id": command.commandID,
+            "type": 0 /* UPLOAD */,
+            "name": command.fname,
+            "size": command.length
+        };
+        try {
+            this.fire('transferinit', details);
+        }
+        catch (E) {
+        }
+        return {
+            "name": command.fname,
+            "size": command.length,
+            "type": command.type,
+            "id": command.commandID,
+            "ok": true
+        };
+    };
+    SockFTP.prototype.onHTMLPaste = function (element /* HTMLElement */) {
+        var i = 0, len = 0, items = [], src = '';
+        for (i = 0, items = element.querySelectorAll('img') || [], len = items.length; i < len; i++) {
+            src = items[i].src;
+            if (/^data\:image\//.test(src)) {
+                this.putBase64Uri(src);
+            }
+        }
+        element.innerHTML = '';
+    };
+    SockFTP.prototype.onNativePaste = function (evt) {
+        var files, i, len, f, clipData, syFile;
+        clipData = evt.clipboardData || evt.dataTransfer || window.clipboardData || null;
+        syFile = false;
+        if (clipData && clipData.files && clipData.files.length) {
+            for (i = 0, files = clipData.files, len = files.length; i < len; i++) {
+                this.put(files[i]);
+                syFile = true;
+            }
+        }
+        if (clipData && clipData.items && clipData.items.length && !syFile) {
+            for (i = 0, files = clipData.items, len = files.length; i < len; i++) {
+                if (files[i].kind && files[i].kind == 'file') {
+                    f = files[i].getAsFile();
+                    this.put(f);
+                }
+            }
+        }
+    };
+    SockFTP.prototype.rememberBinding = function (bindings, src, name, callback, phase) {
+        bindings.records.push({
+            "to": src || null,
+            "cb": callback,
+            "name": name,
+            "phase": phase || false
+        });
+        return callback;
+    };
+    // binds the uploader to a div, textarea, input[type=text] or a div, so that
+    // any time the file changes, or a paste event occurs, or a drag'n drop occurs,
+    // the file is uploaded to the server
+    SockFTP.prototype.bindTo = function (item) {
+        if (!item) {
+            return this;
+        }
+        var isPastableNative = (item.nodeName.toLowerCase() == 'input' && item.type == 'text') || (item.nodeName.toLowerCase() == 'textarea'), UA_Type = SockFTP_UA.type, target = null, bindings = {
+            "target": target,
+            "records": []
+        }, self = this;
+        item.tabIndex = 0;
+        if (item.nodeName.toLowerCase() == 'input' && item.type.toLowerCase() == 'file') {
+            item.addEventListener('focus', this.rememberBinding(bindings, null, 'focus', function () {
+                item.setAttribute('dragover', '');
+            }, true), true);
+            item.addEventListener('blur', this.rememberBinding(bindings, null, 'blur', function () {
+                item.removeAttribute('dragover');
+            }, true), true);
+            item.addEventListener('change', this.rememberBinding(bindings, null, 'change', function (evt) {
+                for (var i = 0, files = item.files || [], len = files.length; i < len; i++) {
+                    self.put(files[i]);
+                }
+            }, true), true);
+        }
+        else {
+            if (!isPastableNative) {
+                if (UA_Type != 'webkit' && UA_Type != 'o') {
+                    try {
+                        if (!item.appendChild) {
+                            throw "E_NOT_APPENDABLE";
+                        }
+                        target = document.createElement('div');
+                        target.className = 'clipboard-trap';
+                        target.contentEditable = true;
+                        target.style.cssText = 'opacity: 0; -webkit-opacity: 0;	-moz-opacity: 0; -ms-opacity: 0; -o-opacity: 0;	left: 0px; top: 0px; right: 0px; bottom: 0px; position: absolute; z-index: -1; overflow: hidden;';
+                        bindings.target = target;
+                        item.style.position = 'relative';
+                        item.appendChild(target);
+                    }
+                    catch (E) {
+                        target = null;
+                    }
+                }
+                if (target) {
+                    if (UA_Type == 'moz' || UA_Type == 'ms') {
+                        target.addEventListener('paste', this.rememberBinding(bindings, 'target', 'paste', function (evt) {
+                            if (UA_Type == 'moz')
+                                setTimeout(function () {
+                                    self.onHTMLPaste(target);
+                                }, 100);
+                            else {
+                                evt.preventDefault();
+                                evt.stopPropagation();
+                                self.onNativePaste(evt);
+                            }
+                        }, true), true);
+                        item.addEventListener('keydown', this.rememberBinding(bindings, null, 'keydown', function (evt) {
+                            if (evt.ctrlKey && evt.keyCode == 86) {
+                                target.focus();
+                            }
+                            else {
+                                if (document.activeElement != item)
+                                    item.focus();
+                            }
+                        }, true), true);
+                    }
+                    else {
+                        item.addEventListener('paste', this.rememberBinding(bindings, null, 'paste', function (evt) {
+                            evt.preventDefault();
+                            evt.stopPropagation();
+                            self.onNativePaste(evt);
+                        }, true), true);
+                    }
+                    target.addEventListener('focus', this.rememberBinding(bindings, 'target', 'focus', function () {
+                        item.setAttribute('dragover', '');
+                    }, true), true);
+                    target.addEventListener('blur', this.rememberBinding(bindings, 'target', 'blur', function () {
+                        item.removeAttribute('dragover');
+                    }, true), true);
+                }
+                else {
+                    item.addEventListener('paste', this.rememberBinding(bindings, null, 'paste', function (evt) {
+                        evt.preventDefault();
+                        evt.stopPropagation();
+                        self.onNativePaste(evt);
+                    }, true), true);
+                }
+            }
+            item.addEventListener('focus', this.rememberBinding(bindings, null, 'focus', function () {
+                item.setAttribute('dragover', '');
+            }, true), true);
+            item.addEventListener('blur', this.rememberBinding(bindings, null, 'blur', function () {
+                item.removeAttribute('dragover');
+            }, true), true);
+            item.addEventListener('dragenter', this.rememberBinding(bindings, null, 'dragenter', function (evt) {
+                item.setAttribute('dragover', '');
+                evt.preventDefault();
+            }, true), true);
+            item.addEventListener('dragover', this.rememberBinding(bindings, null, 'dragover', function (evt) {
+                item.setAttribute('dragover', '');
+                evt.preventDefault();
+            }, true), true);
+            item.addEventListener('dragleave', this.rememberBinding(bindings, null, 'dragleave', function (evt) {
+                item.removeAttribute('dragover');
+                evt.preventDefault();
+            }, true), true);
+            item.addEventListener('drop', this.rememberBinding(bindings, null, 'drop', function (evt) {
+                evt.preventDefault();
+                evt.stopPropagation();
+                item.removeAttribute('dragover');
+                self.onNativePaste(evt);
+            }, true), true);
+        }
+        item.bindings = bindings;
+        return this;
     };
     SockFTP.prototype.unbindFrom = function (element) {
-        if (element.bindings && element.removeEventListener) {
-            for (var k in element.bindings) {
-                element.removeEventListener(k, element.bindings[k], true);
+        if (element && element.bindings) {
+            element.removeAttribute('dragover');
+            if (element.bindings.records) {
+                for (var i = 0, len = element.bindings.records.length; i < len; i++) {
+                    (element.bindings.records[i].to == 'target' ? element.bindings.target : element).removeEventListener(element.bindings.records[i].name, element.bindings.records[i].cb, element.bindings.records[i].phase);
+                    element.bindings.records[i] = null;
+                }
+                delete element.bindings.records;
+            }
+            if (element.bindings.target) {
+                if (element.bindings.target.parentNode) {
+                    element.bindings.target.parentNode.removeChild(element.bindings.target);
+                }
+                element.bindings.target = null;
+                delete element.bindings.target;
             }
             delete element.bindings;
         }
@@ -599,6 +772,7 @@ var SockFTP = (function (_super) {
     SockFTP.$id = 0;
     return SockFTP;
 })(Events);
+// This class is used to detect specific browser implementations (UA stands for UserAgent)
 var SockFTP_UA = (function () {
     function SockFTP_UA() {
     }
@@ -684,6 +858,14 @@ var SockFTP_Command = (function (_super) {
             this.fail('Failed to send data to network');
         }
     };
+    SockFTP_Command.prototype.sendBufferInt8 = function (data) {
+        try {
+            this.client.send(data);
+        }
+        catch (E) {
+            this.fail('Failed to send data to network');
+        }
+    };
     SockFTP_Command.prototype.succeed = function () {
         var result = [];
         for (var _i = 0; _i < arguments.length; _i++) {
@@ -691,7 +873,8 @@ var SockFTP_Command = (function (_super) {
         }
         if (!this.callbacksTriggered) {
             try {
-                this.onSuccess.apply(this.client, result);
+                if (this.onSuccess)
+                    this.onSuccess.apply(this, result);
             }
             catch (E) {
                 this.client.error('COMMAND: ' + this.name + ': Exception during succeed(): ' + E);
@@ -704,7 +887,8 @@ var SockFTP_Command = (function (_super) {
     SockFTP_Command.prototype.fail = function (why) {
         if (!this.callbacksTriggered) {
             try {
-                this.onError(why || 'Unknown error');
+                if (this.onError)
+                    this.onError.call(this, why || 'Unknown error');
             }
             catch (E) {
                 this.client.error('COMMAND: ' + this.name + ': Exception during fail(): ' + E);
@@ -811,7 +995,7 @@ var SockFTP_Command_Put = (function (_super) {
         this.length = this.file.size;
         this.type = this.file.type || 'application/octet-stream';
         this.fname = this.file.name || '';
-        if (this.fname == '') {
+        if (!this.fname) {
             if (this.type != '') {
                 switch (this.type) {
                     case 'image/png':
@@ -825,7 +1009,7 @@ var SockFTP_Command_Put = (function (_super) {
                         this.fname = 'image.gif';
                         break;
                     default:
-                        console.warn('Don\'t know what name to give for mime type: ' + this.type + '. A File.Bin will be automatically issued');
+                        this.client.warn('Don\'t know what name to give for mime type: ' + this.type + '. A "file.bin" will be automatically issued');
                         this.fname = 'file.bin';
                         break;
                 }
@@ -926,6 +1110,135 @@ var SockFTP_Command_Put = (function (_super) {
         }
     };
     return SockFTP_Command_Put;
+})(SockFTP_Command);
+var SockFTP_Command_PutBase64 = (function (_super) {
+    __extends(SockFTP_Command_PutBase64, _super);
+    function SockFTP_Command_PutBase64(client, file, success, error, progress) {
+        _super.call(this, client);
+        this.file = null;
+        this.sent = 0;
+        this.read = 0;
+        this.length = 0;
+        this.type = '';
+        this.fname = '';
+        this.locked = false;
+        this.packetSize = 32000;
+        this.transferType = 0 /* UPLOAD */;
+        this.progress = null;
+        this.onSuccess = success;
+        this.onError = error;
+        this.name = 'put';
+        this.file = file;
+        this.sent = 0;
+        this.length = this.file.size;
+        this.type = this.file.type || 'application/octet-stream';
+        this.fname = this.file.name || '';
+        if (!this.fname) {
+            if (this.type != '') {
+                switch (this.type) {
+                    case 'image/png':
+                        this.fname = 'picture.png';
+                        break;
+                    case 'image/jpg':
+                    case 'image/jpeg':
+                        this.fname = 'picture.jpg';
+                        break;
+                    case 'image/gif':
+                        this.fname = 'image.gif';
+                        break;
+                    default:
+                        this.client.warn('Don\'t know what name to give for mime type: ' + this.type + '. A "file.bin" will be automatically issued');
+                        this.fname = 'file.bin';
+                        break;
+                }
+            }
+            else {
+                this.fname = 'file';
+            }
+        }
+        this.file.name = this.fname;
+        this.progress = progress || null;
+    }
+    SockFTP_Command_PutBase64.prototype.init = function () {
+        _super.prototype.init.call(this);
+        this.client.log('PUT: ' + this.fname + ', length: ' + this.length + ', type: ' + this.type);
+        this.sendText({
+            "name": this.fname,
+            "length": this.length,
+            "type": this.type
+        });
+    };
+    SockFTP_Command_PutBase64.prototype.slice = function (start, length) {
+        return this.file.bytes.subarray(start, length);
+    };
+    SockFTP_Command_PutBase64.prototype.ondrain = function () {
+        // send more bytes to server.
+        if (this.locked || this.callbacksTriggered) {
+            return;
+        }
+        this.locked = true;
+        if (this.sent < this.length) {
+            var blob = this.slice(this.sent, this.read = Math.min(this.sent + this.packetSize, this.length));
+            this.sendBufferInt8(blob);
+            this.sent += blob.length;
+            blob = null;
+            // Update progress.
+            var progress = ~~(this.sent / (this.length / 100));
+            if (progress != this.percent) {
+                this.percent = progress;
+                if (this.progress) {
+                    this.progress(this.percent, this.fname);
+                }
+            }
+            try {
+                this.client.fire('progress', this.client.getProgressDetails(0 /* UPLOAD */));
+            }
+            catch (E) {
+            }
+            this.locked = false;
+        }
+    };
+    SockFTP_Command_PutBase64.prototype.onMessage = function (msg) {
+        _super.prototype.onMessage.call(this, msg);
+        var details = {
+            "name": this.fname,
+            "size": this.length,
+            "type": this.type,
+            "id": this.commandID,
+            "ok": false
+        };
+        if (msg && msg.ok) {
+            // console.warn( msg );
+            details.ok = true;
+            details.url = msg.file;
+            this.client.log('File: ' + this.fname + ' can be accessed via url: ', "\n  ", details.url);
+            try {
+                this.client.fire('put', details);
+            }
+            catch (error) {
+            }
+            this.succeed();
+        }
+        else if (msg && msg.error) {
+            details.error = msg.error;
+            try {
+                this.client.fire('put', details);
+            }
+            catch (error) {
+            }
+            this.fail(msg.error);
+        }
+        else {
+            details.error = 'Bad message received from server';
+            try {
+                this.client.fire('put', details);
+            }
+            catch (error) {
+            }
+            this.fail("E_BAD_MESSAGE");
+        }
+    };
+    return SockFTP_Command_PutBase64;
 })(SockFTP_Command);
 var SockFTP_Command_Ls = (function (_super) {
     __extends(SockFTP_Command_Ls, _super);

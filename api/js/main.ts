@@ -5,4 +5,5 @@
 ///<reference path="./SockFTP/Command.ts" />
 ///<reference path="./SockFTP/Command/Login.ts" />
 ///<reference path="./SockFTP/Command/Put.ts" />
+///<reference path="./SockFTP/Command/PutBase64.ts" />
 ///<reference path="./SockFTP/Command/Ls.ts" />

@@ -121,5 +121,3 @@ That's it.
 ## 3.3. General configuration
 
 The easier way to configure sockftpd daemon is via it's config program, which runs on GUI. On windows shouldn't be a problem, but on linux you mihgt need to modify the "sockftpd.ini" file directly from your favourite text editor.
-
-# 4. Registration

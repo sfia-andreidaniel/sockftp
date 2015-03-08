@@ -49,7 +49,7 @@ class SockFTP extends Events {
 	private    neverAttemptedToConnect     : boolean = true;
 	private    closedByMe                  : boolean = false;
 
-	constructor( /* host: string, port: number, userName: string, password: string */ settings: SockFTPOptions ) {
+	constructor( settings: SockFTPOptions ) {
 		
 		super();
 
@@ -496,13 +496,16 @@ class SockFTP extends Events {
 				me, 
 				f, 
 				success || function() {
-					me.log( 'PUT "' + f.name + '": OK.' );
+					// note that "this" In the context of the callback is the command itself.
+					me.log( 'PUT "' + this.fname + '": OK.' );
 				},
 				error || function( reason: string ) {
-					me.error( 'PUT "' + f.name + '": ERROR: ' + ( reason || 'Unknown upload error' ) );
+					// note that "this" in the context of the callback is the command itself.
+					me.error( 'PUT "' + this.fname + '": ERROR: ' + ( reason || 'Unknown upload error' ) );
 				}, 
 				progress || function( percent: number, name: string ) {
-					me.log( 'PUT "' + f.name + '": ' + percent + '%' );
+					// note that "this" in the context of the callback is the command itself
+					me.log( 'PUT "' + this.fname + '": ' + percent + '%' );
 				}
 			);
 
@@ -538,113 +541,373 @@ class SockFTP extends Events {
 
 	}
 
-	// binds the uploader to a FileInput element, so that
-	// any time the file changes, the file is uploaded to the server
-	public bindTo( element: any ) {
+	public putBase64Uri( 
+		uri 	 : string, 
+		success	 : ( )                               => void = null, 
+		error	 : ( reason: string )                => void = null, 
+		progress : ( percent: number, name: string ) => void = null
 
-		this.log( 'binding to: ', element );
+	): SockFTPUploadDetails {
 
-		if ( !element || !element.nodeName ) {
-			throw "Element must be a HTMLElement ( input, div, etc. )";
+		var matches: any,
+		    file: SockFTPFileBase64 = {
+		    	"name": "",
+		    	"size": 0,
+		    	"type": "application/octet-stream",
+		    	"bytes": null
+		    }, 
+		    raw: any,
+		    rawLength: number = 0,
+		    i: number = 0;
+
+		if ( !( matches = /^data\:(.*);base64,/.exec(uri) ) ) {
+			throw "PUT.base64: invalid url. Ignoring.";
 		}
+
+		file.type = matches[1];
+		raw = atob( uri.split( ';base64,' )[ 1 ] || '' );
+		rawLength = raw.length;
+		file.bytes = new Uint8Array( new ArrayBuffer( rawLength ) );
+		file.size = rawLength;
+
+		for ( i=0; i<rawLength; i++ ) {
+			file.bytes[i] = raw.charCodeAt(i);
+		}
+
+		switch ( true ) {
+			case /^image\/png$/i.test( file.type ):
+				file.name = 'picture.png';
+				break;
+			case /^image\/(jpg|jpeg)$/i.test( file.type ):
+				file.name = 'picture.jpg';
+				break;
+			case /^image\/gif$/i.test( file.type ):
+				file.name = 'image.gif';
+				break;
+			default:
+				file.name = ''; // will show warning on putbase64.ts : 57
+				break;
+		}
+
+
+		var command: SockFTP_Command_PutBase64,
+		    details: SockFTPTransferDetails;
 
 		( function( me ) {
 
+			command = new SockFTP_Command_PutBase64( 
+				me, 
+				file, 
+				success || function() {
+					// note that "this" In the context of the callback is the command itself.
+					me.log( 'PUT "' + this.fname + '": OK.' );
+				},
+				error || function( reason: string ) {
+					// note that "this" in the context of the callback is the command itself.
+					me.error( 'PUT "' + this.fname + '": ERROR: ' + ( reason || 'Unknown upload error' ) );
+				}, 
+				progress || function( percent: number, name: string ) {
+					// note that "this" in the context of the callback is the command itself
+					me.log( 'PUT "' + this.fname + '": ' + percent + '%' );
+				}
+			);
 
-			element.bindings = {};
+			me.addCommand( 
+				command
+			);
 
-			if ( element.nodeName.toLowerCase() == 'input' && element.type && element.type.toLowerCase() == 'file' ) {
-				
-				element.addEventListener( 'change', element.bindings.change = function( evt ) {
+		})( this );
 
-					for ( var i=0, len = element.files.length; i<len; i++ ) {
-						me.put( element.files[i] );
-					}
+		details = {
+			"id": command.commandID,
+			"type": SockFTPTransferType.UPLOAD,
+			"name": command.fname,
+			"size": command.length
+		};
 
-				}, true );
-			
+		// also fire a transferinit event
+		try {
+
+			this.fire( 'transferinit', details );
+
+		} catch (E) {
+
+		}
+
+		return {
+			"name": command.fname,
+			"size": command.length,
+			"type": command.type,
+			"id"  : command.commandID,
+			"ok": true
+		};
+
+	}
+
+	private onHTMLPaste( element: any /* HTMLElement */ ): void {
+
+		var i = 0,
+		    len = 0,
+		    items = [],
+		    src = '';
+
+		for ( i=0, items = element.querySelectorAll( 'img' ) || [], len = items.length; i<len; i++ ) {
+
+			src = items[i].src;
+
+			if ( /^data\:image\//.test( src ) ) {
+				this.putBase64Uri( src );
 			}
 
+		}
 
-			element.addEventListener( 'paste', element.bindings.paste = function( evt: any ) {
+		element.innerHTML = '';
 
-				if ( evt.clipboardData && evt.clipboardData.files && evt.clipboardData.files.length ) {
-					for ( var i=0, len = evt.clipboardData.files.length; i<len; i++ ) {
-						me.put( evt.clipboardData.files[i] );
-					}
-				} else
+	}
 
-				if ( evt.clipboardData && evt.clipboardData.items && evt.clipboardData.items.length ) {
+	private onNativePaste( evt ) {
 
-					for ( var i=0, len = evt.clipboardData.items.length; i<len; i++ ) {
+		var files, i, len, f, clipData, syFile;
 
-						if ( evt.clipboardData.items[i].kind && evt.clipboardData.items[i].kind == 'file' ) {
-							me.put( evt.clipboardData.items[i].getAsFile() );
+		clipData = evt.clipboardData || evt.dataTransfer || window.clipboardData || null;
+
+		syFile = false;
+
+		if ( clipData && clipData.files && clipData.files.length ) {
+
+			for ( i=0, files = clipData.files, len = files.length; i<len; i++ ) {
+				this.put( files[i] );
+				syFile = true;
+			}
+
+		}
+
+		if ( clipData && clipData.items && clipData.items.length && !syFile ) {
+
+			for ( i=0, files = clipData.items, len = files.length; i<len; i++ ) {
+				if ( files[i].kind && files[i].kind == 'file' ) {
+					f = files[i].getAsFile();
+					this.put(f);
+				}
+			}
+
+		}
+
+	}
+
+	private rememberBinding( bindings, src, name, callback, phase ) {
+
+		bindings.records.push( {
+			"to": src || null,
+			"cb": callback,
+			"name": name,
+			"phase": phase || false
+		} );
+
+		return callback;
+
+	}
+
+	// binds the uploader to a div, textarea, input[type=text] or a div, so that
+	// any time the file changes, or a paste event occurs, or a drag'n drop occurs,
+	// the file is uploaded to the server
+	public bindTo( item ): SockFTP {
+
+		if ( !item ) {
+			return this;
+		}
+
+		var isPastableNative = ( item.nodeName.toLowerCase() == 'input' && item.type == 'text' ) || ( item.nodeName.toLowerCase() == 'textarea' ),
+			UA_Type = SockFTP_UA.type,
+			target = null,
+
+			bindings = {
+				"target": target,
+				"records": []
+			},
+
+			self = this;
+
+
+
+		item.tabIndex = 0;
+
+		if ( item.nodeName.toLowerCase() == 'input' && item.type.toLowerCase() == 'file' ) {
+
+			item.addEventListener( 'focus', this.rememberBinding( bindings, null, 'focus', function() {
+				item.setAttribute( 'dragover', '' );
+			}, true ), true );
+
+			item.addEventListener( 'blur', this.rememberBinding( bindings, null, 'blur', function() {
+				item.removeAttribute( 'dragover' );
+			}, true ), true );
+
+			item.addEventListener( 'change', this.rememberBinding( bindings, null, 'change', function( evt ) {
+				for ( var i=0, files = item.files || [], len = files.length; i<len; i++ ) {
+					self.put(files[i]);
+				}
+			}, true ), true );
+
+		} else {
+
+			if ( !isPastableNative ) {
+
+				if ( UA_Type != 'webkit' && UA_Type != 'o' ) {
+					// on webkit the "paste" event is triggered even if the item is not contenteditable.
+
+					try {
+
+						if ( !item.appendChild ) {
+							throw "E_NOT_APPENDABLE";
 						}
 
+						target = document.createElement( 'div' );
+						target.className = 'clipboard-trap';
+						target.contentEditable = true;
+
+						target.style.cssText = 'opacity: 0; -webkit-opacity: 0;	-moz-opacity: 0; -ms-opacity: 0; -o-opacity: 0;	left: 0px; top: 0px; right: 0px; bottom: 0px; position: absolute; z-index: -1; overflow: hidden;';
+
+						bindings.target = target;
+
+						item.style.position = 'relative';
+						item.appendChild( target );
+
+					} catch ( E ) {
+						target = null;
 					}
 
 				}
 
-			}, true );
 
-			// On drag'n drop of type files, upload files on server...
+				if ( target ) {
+
+					if ( UA_Type == 'moz' || UA_Type == 'ms' ) {
+						
+						target.addEventListener( 'paste', this.rememberBinding( bindings, 'target', 'paste', function( evt ) {
+							if ( UA_Type == 'moz' )
+								setTimeout( function() { self.onHTMLPaste( target ); }, 100 );
+							else {
+								evt.preventDefault();
+								evt.stopPropagation();
+								self.onNativePaste( evt );
+							}
+						}, true ), true );
+
+						item.addEventListener( 'keydown', this.rememberBinding( bindings, null, 'keydown', function( evt ) {
+							if ( evt.ctrlKey && evt.keyCode == 86 ) {
+								target.focus();
+							} else {
+								if ( document.activeElement != item )
+								item.focus();
+							}
+						}, true ), true );
+
+					} else {
+						
+						item.addEventListener( 'paste', this.rememberBinding( bindings, null, 'paste', function( evt ) {
+							evt.preventDefault();
+							evt.stopPropagation();
+							self.onNativePaste( evt );
+						}, true ), true );
+
+					}
+
+					target.addEventListener( 'focus', this.rememberBinding( bindings, 'target', 'focus', function() {
+						item.setAttribute( 'dragover', '' );
+					}, true ), true );
+
+					target.addEventListener( 'blur', this.rememberBinding( bindings, 'target', 'blur', function() {
+						item.removeAttribute('dragover');
+					}, true ), true );
 
 
-			// dragenter ...
-			element.addEventListener( 'dragover', element.bindings.dragover = function( evt ) {
+				} else {
+
+					item.addEventListener( 'paste', this.rememberBinding( bindings, null, 'paste', function( evt ) {
+						evt.preventDefault();
+						evt.stopPropagation();
+						self.onNativePaste( evt );
+					}, true ), true );
+
+				}
+
+			} 
+
+			item.addEventListener( 'focus', this.rememberBinding( bindings, null, 'focus', function() {
+				item.setAttribute( 'dragover', '' );
+			}, true ), true );
+
+			item.addEventListener( 'blur', this.rememberBinding( bindings, null, 'blur', function() {
+				item.removeAttribute( 'dragover' );
+			}, true ), true );
+
+			item.addEventListener( 'dragenter', this.rememberBinding( bindings, null, 'dragenter', function( evt ) {
+				item.setAttribute( 'dragover', '' );
+				evt.preventDefault();
+			}, true ), true );
+
+			item.addEventListener( 'dragover', this.rememberBinding( bindings, null, 'dragover', function( evt ) {
+				item.setAttribute( 'dragover', '' );
+				evt.preventDefault();
+			}, true ), true );
+
+			item.addEventListener( 'dragleave', this.rememberBinding( bindings, null, 'dragleave', function( evt ) {
+				item.removeAttribute( 'dragover' );
+				evt.preventDefault();
+			}, true ), true );
+
+			item.addEventListener( 'drop', this.rememberBinding( bindings, null, 'drop', function( evt ) {
 				evt.preventDefault();
 				evt.stopPropagation();
-				evt.dataTransfer.dropEffect = 'copy';
-				element.setAttribute( 'dragover', 'on' );
-			}, true );
+				item.removeAttribute( 'dragover' );
+				self.onNativePaste( evt );
+			}, true ), true );
 
+		}
 
-			// dragleave...
-			element.addEventListener( 'dragleave', element.bindings.dragleave = function( evt ) {
-				evt.preventDefault();
-				evt.stopPropagation();
-				element.removeAttribute( 'dragover' );
-			}, true );
+		item.bindings = bindings;
 
-			// drop
-			element.addEventListener( 'drop', element.bindings.drop = function( evt ) {
-				evt.stopPropagation();
-        		evt.preventDefault();
-        		element.removeAttribute( 'dragover' );
-        		
-        		if ( evt.dataTransfer && evt.dataTransfer.files ) {
-        			for ( var i=0, len = evt.dataTransfer.files.length; i<len; i++ ) {
-        				me.put( evt.dataTransfer.files[i] );
-        			}
-        		}
-			}, true );
-
-			element.addEventListener( 'focus', element.bindings.focus = function( evt ) {
-				element.setAttribute( 'dragover', 'on' );
-			}, true );
-
-			element.addEventListener( 'blur', element.bindings.blur = function( evt ) {
-				element.removeAttribute( 'dragover' );
-			}, true );
-
-			// activate focusing on element...
-			element.tabIndex = 0;
-
-		} )( this );
+		return this;
 
 	}
 
 	public unbindFrom( element: any ) {
 
-		if ( element.bindings && element.removeEventListener ) {
+		if ( element && element.bindings ) {
 
-			for ( var k in element.bindings ) {
-				element.removeEventListener( k, element.bindings[k], true );
+			element.removeAttribute( 'dragover' );
+
+			if ( element.bindings.records ) {
+				
+				for ( var i=0, len = element.bindings.records.length; i<len; i++ ) {
+
+					( element.bindings.records[i].to == 'target'
+						? element.bindings.target
+						: element
+					).removeEventListener(
+						element.bindings.records[i].name,
+						element.bindings.records[i].cb,
+						element.bindings.records[i].phase
+					);
+
+					element.bindings.records[i] = null;
+
+				}
+
+				delete element.bindings.records;
+
+
+			}
+
+			if ( element.bindings.target ) {
+				if ( element.bindings.target.parentNode ) {
+					element.bindings.target.parentNode.removeChild( element.bindings.target );
+				}
+				element.bindings.target = null;
+				delete element.bindings.target;
 			}
 
 			delete element.bindings;
-
 		}
 
 	}	

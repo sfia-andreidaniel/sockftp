@@ -6,7 +6,13 @@
 
     <style>
 
-    #uploader3 {
+    #console {
+        background-color: black;
+        color: white;
+        font-weight: bold;
+    }
+
+    #uploader2 {
         display: block;
         border: 1px solid black;
         padding: 10px;
@@ -50,7 +56,6 @@
             
             uploader.bindTo( document.getElementById( 'uploader' ) );
             uploader.bindTo( document.getElementById( 'uploader2' ) );
-            uploader.bindTo( document.getElementById( 'uploader3' ) );
             
             function str_pad( s, len ) {
                 var out = String(s || '');
@@ -106,22 +111,11 @@
     </p>
     
     <h2>Uploader example #2:</h2>
-    <p>This example illustrates how to transform a standard textarea or text input into
-        a uploader. Each time you hit "ctrl+v" on the input, the files from your clipboard
-        will be uploaded in the background on the server.
-        <br />
-        <br />
-        <label>Paste clipboard content here:
-            <input type="text" id="uploader2" /> (tip: You can paste print-screen content)
-        </label>
-    </p>
-
-    <h2>Uploader example #3:</h2>
     <p> This example illustrates how to transform a standard div into a uploader. Try dropping
         some files on the div below, in order to upload them on the server.
         <br />
         <br />
-        <div id="uploader3">
+        <div id="uploader2">
             Drop files here from your desktop, or press CTRL+V to paste your clipboard content in case it contains a picture...
         </div>
     </p>
@@ -130,7 +124,7 @@
     <br />
     <br />
 
-    <textarea id="console" cols=80 rows=25></textarea><br /><br />
+    <textarea id="console" cols=80 rows=25 readonly></textarea><br /><br />
 
     <label>List: <input id="path" value="/" />
         <button id="list">Go</button>

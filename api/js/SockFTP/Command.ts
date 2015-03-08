@@ -76,13 +76,28 @@ class SockFTP_Command extends Events {
 
 	}
 
+	public sendBufferInt8( data: Int8Array ) {
+
+		try {
+
+			this.client.send( data );
+
+		} catch ( E ) {
+
+			this.fail( 'Failed to send data to network' );
+
+		}
+
+	}
+	
 	public succeed( ...result: any[] ) {
 
 		if ( !this.callbacksTriggered ) {
 
 			try {
 
-				this.onSuccess.apply( this.client, result );
+				if ( this.onSuccess )
+					this.onSuccess.apply( this, result );
 
 			} catch ( E ) {
 
@@ -105,7 +120,8 @@ class SockFTP_Command extends Events {
 
 			try {
 
-				this.onError( why || 'Unknown error' );
+				if ( this.onError )
+					this.onError.call( this, why || 'Unknown error' );
 
 			} catch (E) {
 
